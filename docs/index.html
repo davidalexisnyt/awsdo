@@ -59,6 +59,10 @@
             <strong>Interactive REPL</strong>: Work in an interactive shell with
             command shortcuts and convenient features
           </li>
+          <li>
+            <strong>Credential Export</strong>: Export AWS credentials (access key,
+            secret key, and session token) for use in other applications
+          </li>
           <li><strong>Help System</strong>: Built-in help for all commands</li>
           <li>
             <strong>Auto-Configuration</strong>: Automatically saves your
@@ -136,6 +140,10 @@
             profile setup
           </li>
           <li><code>login</code> - Log in to AWS SSO</li>
+          <li>
+            <code>get-credentials</code> or <code>credentials</code> - Get AWS
+            credentials (access key, secret key, and session token) for a profile
+          </li>
           <li>
             <code>instances</code> - Manage EC2 instances (find, list, add,
             remove). Also supports Linux-style commands: <code>ls instances</code>,
@@ -241,6 +249,47 @@
         <p>
           After running <code>init</code>, you're ready to start using
           <code>awsdo</code> commands!
+        </p>
+
+        <h3>Getting AWS Credentials</h3>
+
+        <p>
+          The <code>get-credentials</code> command (or its alias
+          <code>credentials</code>) retrieves and displays AWS credentials for a
+          specified profile. This is useful when you need to use AWS credentials
+          in other applications that require direct access to the access key,
+          secret key, and session token.
+        </p>
+
+        <p>To get credentials for a profile:</p>
+
+        <pre><code class="language-shell">awsdo get-credentials --profile dev</code></pre>
+
+        <p>Or use the short alias:</p>
+
+        <pre><code class="language-shell">awsdo credentials -p dev</code></pre>
+
+        <p>
+          If no profile is specified, it uses the default profile from your
+          configuration.
+        </p>
+
+        <p>The command outputs credentials in a formatted display:</p>
+
+        <pre><code>
+Access Key:     ASIAIOSFODNN7EXAMPLE
+--------------------------------
+Secret Key:     wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+--------------------------------
+Session Token:  AQoDYXdzEJr...
+--------------------------------
+Expiration:     2024-01-15T12:00:00Z
+--------------------------------
+</code></pre>
+
+        <p>
+          The command automatically handles authentication - if you're not logged
+          in, it will prompt you to log in first before retrieving credentials.
         </p>
 
         <h3>Logging in to AWS</h3>
@@ -896,6 +945,10 @@ Profile: prod
                 <code>find instance</code> - Find instances
               </li>
               <li>
+                <code>credentials</code> or <code>get-credentials</code> - Get
+                AWS credentials
+              </li>
+              <li>
                 <code>up</code> - Shortcut for <code>bastions update</code>
               </li>
               <li>
@@ -925,6 +978,7 @@ Profile: prod
         <p>In REPL mode, you can run commands like:</p>
 
         <pre><code>&gt;&gt;&gt; login -p dev
+&gt;&gt;&gt; credentials -p dev
 &gt;&gt;&gt; instances find -f myapp
 &gt;&gt;&gt; instances ls
 &gt;&gt;&gt; ls instances
@@ -1016,6 +1070,8 @@ awsdo terminal</code></pre>
 
         <pre><code class="language-shell">awsdo help init
 awsdo help login
+awsdo help get-credentials
+awsdo help credentials
 awsdo help bastion
 awsdo help bastions
 awsdo help bastions list

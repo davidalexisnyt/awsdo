@@ -25,15 +25,16 @@ func main() {
 	exePath, _ := os.Executable()
 	configFile := filepath.Join(filepath.Dir(exePath), "awsdo_config.json")
 
-	if len(os.Args) < 2 {
-		showHelp("")
-		os.Exit(1)
-	}
-
 	config, err := loadConfiguration(configFile)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
+	}
+
+	// Default to launching the REPL if no command is provided
+	if len(os.Args) < 2 {
+		startREPL(configFile, &config)
+		return
 	}
 
 	command := strings.ToLower(os.Args[1])
@@ -48,6 +49,12 @@ func main() {
 		return
 	case "login":
 		login(os.Args[2:], &config)
+	case "get-credentials", "credentials":
+		if err := getCredentials(os.Args[2:], &config); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		return
 	case "instances":
 		if len(os.Args) < 3 {
 			// Default to 'list' if no subcommand provided

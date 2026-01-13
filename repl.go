@@ -519,6 +519,10 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		fmt.Println()
 	case "login":
 		login(args, config)
+	case "get-credentials", "credentials":
+		if err := getCredentials(args, config); err != nil {
+			fmt.Println(err.Error())
+		}
 	case "instances":
 		if len(args) < 1 {
 			listInstances(args, config)

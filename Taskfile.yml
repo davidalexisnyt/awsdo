@@ -12,7 +12,7 @@ tasks:
     desc: Build for Windows, Linux, and Mac
     cmds:
       - echo "Building for Windows..."
-      - GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o awsdo-windows-amd64.exe
+      - GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -tags=windows -o awsdo-windows-amd64.exe
       - echo "Building for Linux..."
       - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o awsdo-linux-amd64
       - echo "Building for Mac (Intel)..."
