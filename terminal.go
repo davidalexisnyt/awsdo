@@ -220,6 +220,12 @@ func startSSMSession(args []string, config *Configuration) error {
 		commandArgs = append(commandArgs, "--profile", currentProfile)
 	}
 
+	// Let the user know which instance we're connecting to
+	msg := fmt.Sprintf("Connecting to instance %s%s%s (ID: %s) using profile %s%s%s", greenColor, instance.Name, resetColor, instance.ID, greenColor, currentProfile, resetColor)
+	fmt.Println("\n-----------------------------------------------------------------------------------------------")
+	fmt.Println(msg)
+	fmt.Println("-----------------------------------------------------------------------------------------------")
+
 	// Ensure that we're logged in before running the command.
 	if !isLoggedIn(currentProfile) {
 		loginArgs := []string{}

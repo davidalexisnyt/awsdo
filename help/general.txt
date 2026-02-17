@@ -4,16 +4,18 @@ USAGE:
     awsdo <command> [options]
 
 COMMANDS:
-    init        Initialize AWS CLI, SSM plugin, and AWS SSO profile
-    login       Log in to AWS SSO
-    instances   Manage EC2 instances (find, list, add, remove)
-    terminal    Start an SSM terminal session to an EC2 instance
-    bastion     Start a port forwarding session through a bastion host
-    bastions    Manage bastion hosts (list, add, update, remove)
-    repl        Start interactive REPL mode
-    docs        Display the full documentation in a web page
-    help        Show help information
-    version     Show application version
+    init            Initialize AWS CLI, SSM plugin, and AWS SSO profile
+    login           Log in to AWS SSO
+    get-credentials Get AWS credentials (access key, secret key, session token)
+    credentials     Alias for get-credentials
+    instances       Manage EC2 instances (find, list, add, remove)
+    terminal        Start an SSM terminal session to an EC2 instance
+    bastion         Start a port forwarding session through a bastion host
+    bastions        Manage bastion hosts (list, add, update, remove)
+    repl            Start interactive REPL mode
+    docs            Display the full documentation in a web page
+    help            Show help information
+    version         Show application version
 
     # Linux-style commands (alternative syntax)
     ls, list    List instances or bastions (e.g., 'ls instances', 'list bastions')

@@ -30,6 +30,11 @@ func getCredentials(args []string, config *Configuration) error {
 		return err
 	}
 
+	msg := fmt.Sprintf("Displaying credentials for profile %s%s%s", greenColor, currentProfile, resetColor)
+	fmt.Println("\n-----------------------------------------------------------------------------------------------")
+	fmt.Println(msg)
+	fmt.Println("-----------------------------------------------------------------------------------------------")
+
 	// Ensure that we're logged in before running the command.
 	if !isLoggedIn(currentProfile) {
 		loginArgs := []string{}

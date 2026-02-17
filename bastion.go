@@ -790,6 +790,12 @@ func startBastionTunnel(args []string, config *Configuration) error {
 		login(args, config)
 	}
 
+	msg := fmt.Sprintf("Starting bastion tunnel to %s%s%s \non port %d using profile %s%s%s", greenColor, bastion.Host, resetColor, bastion.Port, greenColor, bastion.Profile, resetColor)
+
+	fmt.Println("\n-----------------------------------------------------------------------------------------------")
+	fmt.Println(msg)
+	fmt.Println("-----------------------------------------------------------------------------------------------")
+
 	fmt.Printf("\nStarting port forwarding session to %s:%d via bastion %s...\n", bastion.Host, bastion.LocalPort, bastion.Instance)
 	fmt.Println("Press Ctrl-C to stop the tunnel and return to the REPL.")
 

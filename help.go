@@ -20,6 +20,9 @@ var helpInit string
 //go:embed help/login.txt
 var helpLogin string
 
+//go:embed help/get-credentials.txt
+var helpGetCredentials string
+
 //go:embed help/instances.txt
 var helpInstances string
 
@@ -143,6 +146,8 @@ func showHelp(command string) {
 		fmt.Print(helpInit)
 	case "login":
 		fmt.Print(helpLogin)
+	case "get-credentials", "credentials":
+		fmt.Print(helpGetCredentials)
 	case "instances":
 		fmt.Print(helpInstances)
 	case "instances find":
