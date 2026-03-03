@@ -18,7 +18,7 @@ COMMANDS:
     version         Show application version
 
     # Linux-style commands (alternative syntax)
-    ls, list    List instances or bastions (e.g., 'ls instances', 'list bastions')
+    ls, list    List instances, bastions, or profiles (e.g., 'ls instances', 'list bastions', 'ls profiles')
     add         Add an instance or bastion (e.g., 'add instance', 'add bastion')
     rm          Remove an instance or bastion (e.g., 'rm instance', 'rm bastion')
     find        Find instances (e.g., 'find instance')

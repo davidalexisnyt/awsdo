@@ -163,6 +163,10 @@
             <code>add bastion</code>, <code>rm bastion</code>
           </li>
           <li>
+            <code>ls profiles</code> - List AWS CLI profiles from
+            <code>~/.aws/config</code>
+          </li>
+          <li>
             <code>repl</code> - Start interactive REPL mode for convenient
             command execution
           </li>
@@ -726,6 +730,20 @@ Profile: prod
           So let's fix that.
         </p>
 
+        <h4>Listing AWS Profiles</h4>
+
+        <p>
+          To view all AWS CLI profiles configured in <code>~/.aws/config</code>:
+        </p>
+
+        <pre><code class="language-shell">awsdo ls profiles
+awsdo list profiles</code></pre>
+
+        <p>
+          The awsdo default profile (if set) will be marked with
+          <code>*</code>. Use <code>-p</code> to filter to a single profile.
+        </p>
+
         <h4>Bastion Configuration</h4>
 
         <p><strong>Adding a New Bastion</strong></p>
@@ -930,6 +948,10 @@ Profile: prod
                 configured bastions
               </li>
               <li>
+                <code>ls profiles</code> or <code>list profiles</code> - List
+                AWS CLI profiles
+              </li>
+              <li>
                 <code>add instance</code> - Add a new instance
               </li>
               <li>
@@ -982,6 +1004,7 @@ Profile: prod
 &gt;&gt;&gt; instances find -f myapp
 &gt;&gt;&gt; instances ls
 &gt;&gt;&gt; ls instances
+&gt;&gt;&gt; ls profiles
 &gt;&gt;&gt; find instance -f myapp
 &gt;&gt;&gt; add instance -f example
 &gt;&gt;&gt; terminal myinstance
@@ -1072,6 +1095,7 @@ awsdo terminal</code></pre>
 awsdo help login
 awsdo help get-credentials
 awsdo help credentials
+awsdo help ls
 awsdo help bastion
 awsdo help bastions
 awsdo help bastions list

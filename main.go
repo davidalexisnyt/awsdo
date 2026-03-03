@@ -113,8 +113,8 @@ func main() {
 		initCommand(&config)
 	case "ls", "list":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: awsdo ls <instances|bastions> [options]")
-			fmt.Println("   or: awsdo list <instances|bastions> [options]")
+			fmt.Println("Usage: awsdo ls <instances|bastions|profiles> [options]")
+			fmt.Println("   or: awsdo list <instances|bastions|profiles> [options]")
 			os.Exit(1)
 		}
 		object := strings.ToLower(os.Args[2])
@@ -123,9 +123,11 @@ func main() {
 			listInstances(os.Args[3:], &config)
 		case "bastions", "bastion":
 			listBastions(os.Args[3:], &config)
+		case "profiles", "profile":
+			listProfiles(os.Args[3:], &config)
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'awsdo ls instances' or 'awsdo ls bastions'")
+			fmt.Println("Use 'awsdo ls instances', 'awsdo ls bastions', or 'awsdo ls profiles'")
 			os.Exit(1)
 		}
 	case "add":

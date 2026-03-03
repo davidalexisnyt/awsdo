@@ -170,7 +170,7 @@ func showHelp(command string) {
 		fmt.Print(helpHelp)
 	case "rm", "remove":
 		fmt.Print(helpRm)
-	case "ls", "list":
+	case "ls", "list", "ls profiles", "list profiles":
 		fmt.Print(helpLs)
 	default:
 		fmt.Printf(helpUnknown, command)

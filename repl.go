@@ -578,8 +578,8 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		fmt.Print(clearScreen)
 	case "ls", "list":
 		if len(args) < 1 {
-			fmt.Println("Usage: ls <instances|bastions> [options]")
-			fmt.Println("   or: list <instances|bastions> [options]")
+			fmt.Println("Usage: ls <instances|bastions|profiles> [options]")
+			fmt.Println("   or: list <instances|bastions|profiles> [options]")
 		}
 		object := strings.ToLower(args[0])
 		switch object {
@@ -587,13 +587,15 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			listInstances(args[1:], config)
 		case "bastions", "bastion":
 			listBastions(args[1:], config)
+		case "profiles", "profile":
+			listProfiles(args[1:], config)
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'ls instances' or 'ls bastions'")
+			fmt.Println("Use 'ls instances', 'ls bastions', or 'ls profiles'")
 		}
 	case "add":
 		if len(args) < 1 {
-			fmt.Println("Usage: add <instance|bastion> [options]")
+			fmt.Println("Usage: add <instance|bastion|profiles> [options]")
 		}
 
 		object := strings.ToLower(args[0])

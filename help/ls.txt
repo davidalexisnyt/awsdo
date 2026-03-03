@@ -1,4 +1,4 @@
-awsdo ls / list - List instances or bastions (alias commands)
+awsdo ls / list - List instances, bastions, or profiles (alias commands)
 
 USAGE:
     awsdo ls instances [--profile <aws cli profile>]
@@ -11,10 +11,15 @@ USAGE:
     awsdo list bastions [--profile <aws cli profile>]
     awsdo list bastion [--profile <aws cli profile>]
 
+    awsdo ls profiles [--profile <aws cli profile>]
+    awsdo ls profile [--profile <aws cli profile>]
+    awsdo list profiles [--profile <aws cli profile>]
+    awsdo list profile [--profile <aws cli profile>]
+
 DESCRIPTION:
-    The 'ls' and 'list' commands are aliases for the 'instances list' and
-    'bastions list' commands. They provide a Linux-style alternative syntax
-    for listing configured instances or bastions.
+    The 'ls' and 'list' commands are aliases for the 'instances list',
+    'bastions list' commands, and for listing AWS CLI profiles. They provide
+    a Linux-style alternative syntax for listing configured instances.
 
     These commands are equivalent to:
     - awsdo instances list [options]
@@ -46,12 +51,23 @@ LISTING BASTIONS:
         awsdo list bastion
         awsdo list bastions -p prod
 
+LISTING PROFILES:
+    Lists all AWS CLI profiles configured in ~/.aws/config. The awsdo default
+    profile (if set) will be marked with "*". Use --profile to filter to a
+    single profile.
+
+    Examples:
+        awsdo ls profiles
+        awsdo ls profiles --profile dev
+        awsdo list profiles
+        awsdo list profile -p prod
+
 OPTIONS:
     --profile, -p    AWS CLI profile to use
 
 NOTES:
     - Both 'ls' and 'list' are valid command names
-    - You can use either singular (instance/bastion) or plural (instances/bastions) forms
-    - If no profile is specified, lists items across all profiles
+    - You can use either singular (instance/bastion/profile) or plural (instances/bastions/profiles) forms
+    - If no profile is specified, lists items across all profiles (instances/bastions) or all profiles (profiles)
     - For more information, see: awsdo help instances or awsdo help bastions
 
