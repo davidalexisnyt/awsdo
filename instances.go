@@ -1165,15 +1165,23 @@ func updateInstance(args []string, config *Configuration) {
 		strings.Repeat("─", colPublicIPWidth),
 		strings.Repeat("─", colLaunchTimeWidth))
 
-	fmt.Print("\nSelect instance number: ")
-	instSelection, _ := reader.ReadString('\n')
-	instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
+	var selectedInstance EC2Instance
 
-	if err != nil || instIndex < 1 || instIndex > len(instances) {
-		return
+	// Auto-select instance if only one result and no filter provided
+	if len(instances) == 1 {
+		selectedInstance = instances[0]
+		fmt.Printf("\nAutomatically selected instance '%s' (ID: %s) since it's the only result.\n", selectedInstance.Name, selectedInstance.Instance)
+	} else {
+		fmt.Print("\nSelect instance number: ")
+		instSelection, _ := reader.ReadString('\n')
+		instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
+
+		if err != nil || instIndex < 1 || instIndex > len(instances) {
+			return
+		}
+
+		selectedInstance = instances[instIndex-1]
 	}
-
-	selectedInstance := instances[instIndex-1]
 
 	// Update instance configuration
 	// Preserve Name and Profile, update ID and Host
