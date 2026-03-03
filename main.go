@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-var Version = "1.0.12"
+var Version = "1.0.13"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func main() {
