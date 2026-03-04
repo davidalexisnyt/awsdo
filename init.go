@@ -618,11 +618,22 @@ func installSSMPluginLinux() error {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// setupProfile walks the user through setting up an AWS SSO profile
+// setupProfile walks the user through setting up an AWS SSO profile (used by init)
 func setupProfile(config *Configuration) error {
+	return addProfileWithSSOSetup(config, "")
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// addProfileWithSSOSetup walks the user through setting up an AWS SSO profile.
+// If profileName is empty, prompts for it (default "default"). If non-empty, uses it directly.
+func addProfileWithSSOSetup(config *Configuration, profileName string) error {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("Let's set up your first AWS SSO profile.")
+	if profileName != "" {
+		fmt.Printf("Adding AWS SSO profile '%s'.\n", profileName)
+	} else {
+		fmt.Println("Let's set up your first AWS SSO profile.")
+	}
 	fmt.Println("You'll need the following information from your AWS administrator:")
 	fmt.Println("  - SSO start URL")
 	fmt.Println("  - SSO region")
@@ -630,12 +641,14 @@ func setupProfile(config *Configuration) error {
 	fmt.Println("  - Role name")
 	fmt.Println()
 
-	// Get profile name
-	fmt.Print("Profile name [default]: ")
-	profileName, _ := reader.ReadString('\n')
-	profileName = strings.TrimSpace(profileName)
+	// Get profile name if not provided
 	if profileName == "" {
-		profileName = "default"
+		fmt.Print("Profile name [default]: ")
+		name, _ := reader.ReadString('\n')
+		profileName = strings.TrimSpace(name)
+		if profileName == "" {
+			profileName = "default"
+		}
 	}
 
 	// Get SSO start URL
@@ -768,4 +781,63 @@ func appendProfileToConfig(configPath, profileName, ssoStartURL, ssoRegion, acco
 
 	_, err = file.WriteString(profileConfig)
 	return err
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// removeProfileFromAWSConfig removes a profile section from the AWS config file
+func removeProfileFromAWSConfig(configPath, profileName string) error {
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var result []string
+	inTargetSection := false
+	found := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check if this line starts a new section
+		if strings.HasPrefix(trimmed, "[profile ") {
+			sectionName := strings.TrimPrefix(trimmed, "[profile ")
+			sectionName = strings.TrimSuffix(sectionName, "]")
+			sectionName = strings.TrimSpace(sectionName)
+			if sectionName == profileName {
+				inTargetSection = true
+				found = true
+				continue
+			}
+			inTargetSection = false
+		} else if trimmed == "[default]" {
+			if profileName == "default" {
+				inTargetSection = true
+				found = true
+				continue
+			}
+			inTargetSection = false
+		} else if inTargetSection {
+			// Skip lines belonging to the target section
+			continue
+		}
+
+		result = append(result, lines[i])
+	}
+
+	if !found {
+		return fmt.Errorf("profile '%s' not found in config", profileName)
+	}
+
+	// Trim trailing empty lines from result
+	for len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
+		result = result[:len(result)-1]
+	}
+
+	newContent := strings.Join(result, "\n")
+	if len(newContent) > 0 && !strings.HasSuffix(newContent, "\n") {
+		newContent += "\n"
+	}
+
+	return os.WriteFile(configPath, []byte(newContent), 0644)
 }

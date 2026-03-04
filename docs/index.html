@@ -163,8 +163,8 @@
             <code>add bastion</code>, <code>rm bastion</code>
           </li>
           <li>
-            <code>ls profiles</code> - List AWS CLI profiles from
-            <code>~/.aws/config</code>
+            <code>profiles</code> - Add or list AWS CLI profiles
+            (<code>profiles add</code>, <code>profiles list</code>)
           </li>
           <li>
             <code>repl</code> - Start interactive REPL mode for convenient
@@ -744,6 +744,51 @@ awsdo list profiles</code></pre>
           <code>*</code>. Use <code>-p</code> to filter to a single profile.
         </p>
 
+        <h4>Adding an AWS Profile</h4>
+
+        <p>
+          To add a new AWS SSO profile to <code>~/.aws/config</code>:
+        </p>
+
+        <pre><code class="language-shell">awsdo profiles add &lt;profile name&gt;</code></pre>
+
+        <p>
+          You can also use the Linux-style command pattern:
+        </p>
+
+        <pre><code class="language-shell">awsdo add profile &lt;profile name&gt;</code></pre>
+
+        <p>
+          This will guide you through entering SSO start URL, SSO region,
+          account ID, role name, and default region. The profile is written
+          to <code>~/.aws/config</code> and a login test is performed to
+          verify the configuration. You will need this information from your
+          AWS administrator.
+        </p>
+
+        <h4>Removing an AWS Profile</h4>
+
+        <p>
+          To remove an AWS CLI profile from <code>~/.aws/config</code> and
+          awsdo config:
+        </p>
+
+        <pre><code class="language-shell">awsdo profiles remove &lt;profile name&gt;
+awsdo profiles rm &lt;profile name&gt;</code></pre>
+
+        <p>
+          You can also use the Linux-style command pattern:
+        </p>
+
+        <pre><code class="language-shell">awsdo rm profile &lt;profile name&gt;</code></pre>
+
+        <p>
+          You will be prompted to confirm before the profile is removed. The
+          profile is deleted from both <code>~/.aws/config</code> and
+          awsdo_config.json. If the removed profile was the awsdo default,
+          the default will be cleared.
+        </p>
+
         <h4>Bastion Configuration</h4>
 
         <p><strong>Adding a New Bastion</strong></p>
@@ -952,16 +997,28 @@ awsdo list profiles</code></pre>
                 AWS CLI profiles
               </li>
               <li>
+                <code>profiles add &lt;name&gt;</code> - Add new AWS SSO profile
+              </li>
+              <li>
+                <code>profiles remove &lt;name&gt;</code> or <code>profiles rm &lt;name&gt;</code> - Remove AWS profile
+              </li>
+              <li>
                 <code>add instance</code> - Add a new instance
               </li>
               <li>
                 <code>add bastion</code> - Add a new bastion
               </li>
               <li>
+                <code>add profile &lt;name&gt;</code> - Add new AWS SSO profile
+              </li>
+              <li>
                 <code>rm instance</code> - Remove an instance
               </li>
               <li>
                 <code>rm bastion</code> - Remove a bastion
+              </li>
+              <li>
+                <code>rm profile &lt;name&gt;</code> - Remove AWS profile
               </li>
               <li>
                 <code>find instance</code> - Find instances
@@ -1005,6 +1062,8 @@ awsdo list profiles</code></pre>
 &gt;&gt;&gt; instances ls
 &gt;&gt;&gt; ls instances
 &gt;&gt;&gt; ls profiles
+&gt;&gt;&gt; profiles add dev
+&gt;&gt;&gt; profiles remove dev
 &gt;&gt;&gt; find instance -f myapp
 &gt;&gt;&gt; add instance -f example
 &gt;&gt;&gt; terminal myinstance
@@ -1096,6 +1155,7 @@ awsdo help login
 awsdo help get-credentials
 awsdo help credentials
 awsdo help ls
+awsdo help profiles
 awsdo help bastion
 awsdo help bastions
 awsdo help bastions list

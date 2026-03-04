@@ -572,6 +572,27 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Printf("Invalid bastions subcommand: %s\n", subcommand)
 			fmt.Println("Use 'bastions list' to list bastions, 'bastions add' to add a new bastion, 'bastions update' to update an existing bastion, or 'bastions remove' to remove a bastion.")
 		}
+	case "profiles":
+		if len(args) < 1 {
+			listProfiles(args, config)
+			return
+		}
+		subcommand := strings.ToLower(args[0])
+		switch subcommand {
+		case "add":
+			if err := addProfile(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		case "list", "ls":
+			listProfiles(args[1:], config)
+		case "remove", "rm":
+			if err := removeProfile(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		default:
+			fmt.Printf("Invalid profiles subcommand: %s\n", subcommand)
+			fmt.Println("Use 'profiles add <name>', 'profiles list', or 'profiles remove <name>'")
+		}
 	case "docs":
 		showDocs()
 	case "clear", "cls", "clr", ".c":
@@ -595,7 +616,7 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		}
 	case "add":
 		if len(args) < 1 {
-			fmt.Println("Usage: add <instance|bastion|profiles> [options]")
+			fmt.Println("Usage: add <instance|bastion|profile> [options]")
 		}
 
 		object := strings.ToLower(args[0])
@@ -604,13 +625,17 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			addInstance(args[1:], config)
 		case "bastion", "bastions":
 			addBastion(args[1:], config)
+		case "profile", "profiles":
+			if err := addProfile(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'add instance' or 'add bastion'")
+			fmt.Println("Use 'add instance', 'add bastion', or 'add profile'")
 		}
 	case "rm":
 		if len(args) < 1 {
-			fmt.Println("Usage: rm <instance|bastion> [options]")
+			fmt.Println("Usage: rm <instance|bastion|profile> [options]")
 		}
 		object := strings.ToLower(args[0])
 		switch object {
@@ -618,9 +643,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			removeInstance(args[1:], config)
 		case "bastion", "bastions":
 			removeBastion(args[1:], config)
+		case "profile", "profiles":
+			if err := removeProfile(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'rm instance' or 'rm bastion'")
+			fmt.Println("Use 'rm instance', 'rm bastion', or 'rm profile'")
 		}
 	case "find":
 		if len(args) < 1 {

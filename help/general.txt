@@ -12,6 +12,7 @@ COMMANDS:
     terminal        Start an SSM terminal session to an EC2 instance
     bastion         Start a port forwarding session through a bastion host
     bastions        Manage bastion hosts (list, add, update, remove)
+    profiles        Manage AWS CLI profiles (add, list, remove)
     repl            Start interactive REPL mode
     docs            Display the full documentation in a web page
     help            Show help information
@@ -19,8 +20,8 @@ COMMANDS:
 
     # Linux-style commands (alternative syntax)
     ls, list    List instances, bastions, or profiles (e.g., 'ls instances', 'list bastions', 'ls profiles')
-    add         Add an instance or bastion (e.g., 'add instance', 'add bastion')
-    rm          Remove an instance or bastion (e.g., 'rm instance', 'rm bastion')
+    add         Add an instance, bastion, or profile (e.g., 'add instance', 'add bastion', 'add profile')
+    rm          Remove an instance, bastion, or profile (e.g., 'rm instance', 'rm bastion', 'rm profile')
     find        Find instances (e.g., 'find instance')
 
 For detailed help on a specific command, use:

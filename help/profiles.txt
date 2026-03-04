@@ -1,0 +1,69 @@
+awsdo profiles - Manage AWS CLI profiles
+
+USAGE:
+    awsdo profiles add <profile name>
+    awsdo profiles add --name <profile name>
+    awsdo profiles list [--profile <aws cli profile>]
+    awsdo profiles ls [--profile <aws cli profile>]
+    awsdo profiles remove <profile name>
+    awsdo profiles rm <profile name>
+
+    awsdo add profile <profile name>
+    awsdo rm profile <profile name>
+
+DESCRIPTION:
+    The profiles command provides subcommands to add, list, and remove AWS CLI
+    profiles. If no subcommand is provided, defaults to 'list'. Use 'profiles add'
+    to create a new AWS SSO profile in ~/.aws/config.
+
+SUBCOMMANDS:
+    add     Interactively configure a new AWS SSO profile. You will be
+            prompted for SSO start URL, SSO region, account ID, role name,
+            and default region. The profile is written to ~/.aws/config and
+            a login test is performed.
+
+    list    List all AWS CLI profiles configured in ~/.aws/config.
+            The awsdo default profile (if set) will be marked with "*".
+            Shortcut: ls
+
+    remove  Remove an AWS CLI profile from ~/.aws/config and awsdo config.
+            Prompts for confirmation before removal. Clears the awsdo default
+            if the removed profile was the default. Shortcut: rm
+
+ADD COMMAND:
+    Creates a new AWS SSO profile with the specified name. You will need
+    the following information from your AWS administrator:
+    - SSO start URL
+    - SSO region
+    - Account ID
+    - Role name
+
+    The profile is appended to ~/.aws/config and added to awsdo's
+    configuration. If no default profile is set, the new profile
+    becomes the default. A login test is run to verify the configuration.
+
+    The profile name cannot already exist in ~/.aws/config.
+
+REMOVE COMMAND:
+    Removes a profile from ~/.aws/config and from awsdo's configuration.
+    You will be prompted to confirm before the profile is deleted. If the
+    removed profile was the awsdo default, the default will be cleared.
+
+EXAMPLES:
+    awsdo profiles add dev
+    awsdo profiles add --name prod-admin
+    awsdo add profile staging
+    awsdo profiles list
+    awsdo profiles ls -p dev
+    awsdo profiles remove dev
+    awsdo profiles rm prod
+    awsdo rm profile staging
+
+OPTIONS:
+    --profile, -p    AWS CLI profile (for list command, filters to single profile)
+    --name           Profile name (alternative to positional argument for add)
+
+NOTES:
+    - Use 'awsdo ls profiles' as an alternative to 'profiles list'
+    - Profile names cannot contain spaces
+    - You will need SSO information from your AWS administrator

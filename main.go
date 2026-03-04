@@ -103,6 +103,28 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	case "profiles":
+		if len(os.Args) < 3 {
+			listProfiles([]string{}, &config)
+		} else {
+			subcommand := strings.ToLower(os.Args[2])
+			switch subcommand {
+			case "add":
+				if err := addProfile(os.Args[3:], &config); err != nil {
+					os.Exit(1)
+				}
+			case "list", "ls":
+				listProfiles(os.Args[3:], &config)
+			case "remove", "rm":
+				if err := removeProfile(os.Args[3:], &config); err != nil {
+					os.Exit(1)
+				}
+			default:
+				fmt.Printf("Invalid profiles subcommand: %s\n", subcommand)
+				fmt.Println("Use 'awsdo profiles add <name>', 'awsdo profiles list', or 'awsdo profiles remove <name>'")
+				os.Exit(1)
+			}
+		}
 	case "docs":
 		showDocs()
 		return
@@ -132,7 +154,7 @@ func main() {
 		}
 	case "add":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: awsdo add <instance|bastion> [options]")
+			fmt.Println("Usage: awsdo add <instance|bastion|profile> [options]")
 			os.Exit(1)
 		}
 		object := strings.ToLower(os.Args[2])
@@ -141,14 +163,18 @@ func main() {
 			addInstance(os.Args[3:], &config)
 		case "bastion", "bastions":
 			addBastion(os.Args[3:], &config)
+		case "profile", "profiles":
+			if err := addProfile(os.Args[3:], &config); err != nil {
+				os.Exit(1)
+			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'awsdo add instance' or 'awsdo add bastion'")
+			fmt.Println("Use 'awsdo add instance', 'awsdo add bastion', or 'awsdo add profile'")
 			os.Exit(1)
 		}
 	case "rm":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: awsdo rm <instance|bastion> [options]")
+			fmt.Println("Usage: awsdo rm <instance|bastion|profile> [options]")
 			os.Exit(1)
 		}
 		object := strings.ToLower(os.Args[2])
@@ -157,9 +183,13 @@ func main() {
 			removeInstance(os.Args[3:], &config)
 		case "bastion", "bastions":
 			removeBastion(os.Args[3:], &config)
+		case "profile", "profiles":
+			if err := removeProfile(os.Args[3:], &config); err != nil {
+				os.Exit(1)
+			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
-			fmt.Println("Use 'awsdo rm instance' or 'awsdo rm bastion'")
+			fmt.Println("Use 'awsdo rm instance', 'awsdo rm bastion', or 'awsdo rm profile'")
 			os.Exit(1)
 		}
 	case "find":

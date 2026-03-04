@@ -1,4 +1,4 @@
-awsdo rm / remove - Remove instances or bastions (alias commands)
+awsdo rm / remove - Remove instances, bastions, or profiles (alias commands)
 
 USAGE:
     awsdo rm instance [--profile <aws cli profile>] [--name <instance name>]
@@ -11,14 +11,20 @@ USAGE:
     awsdo remove bastion [--profile <aws cli profile>] [--name <bastion name>]
     awsdo remove bastions [--profile <aws cli profile>] [--name <bastion name>]
 
+    awsdo rm profile <profile name>
+    awsdo rm profiles <profile name>
+    awsdo remove profile <profile name>
+    awsdo remove profiles <profile name>
+
 DESCRIPTION:
-    The 'rm' and 'remove' commands are aliases for the 'instances remove' and
-    'bastions remove' commands. They provide a Linux-style alternative syntax
-    for removing configured instances or bastions.
+    The 'rm' and 'remove' commands are aliases for the 'instances remove',
+    'bastions remove', and 'profiles remove' commands. They provide a
+    Linux-style alternative syntax for removing configured items.
 
     These commands are equivalent to:
     - awsdo instances remove [options]
     - awsdo bastions remove [options]
+    - awsdo profiles remove [options]
 
 REMOVING INSTANCES:
     Removes a named EC2 instance from the configuration:
@@ -48,13 +54,27 @@ REMOVING BASTIONS:
         awsdo remove bastions --name mybastion
         awsdo remove bastion -p dev
 
+REMOVING PROFILES:
+    Removes an AWS CLI profile from ~/.aws/config and awsdo config:
+    1. Displays the profile name (and notes if it is the awsdo default)
+    2. Asks for confirmation before removal
+    3. Removes from ~/.aws/config and awsdo_config.json
+    4. Clears the awsdo default if the removed profile was the default
+
+    Examples:
+        awsdo rm profile dev
+        awsdo rm profile prod
+        awsdo remove profiles staging
+
 OPTIONS:
-    --profile, -p    AWS CLI profile to use
+    --profile, -p    AWS CLI profile to use (instances, bastions)
     --name, -n       Instance or bastion name
+    --name           Profile name (for profiles remove)
 
 NOTES:
     - Both 'rm' and 'remove' are valid command names
-    - You can use either singular (instance/bastion) or plural (instances/bastions) forms
+    - You can use either singular (instance/bastion/profile) or plural (instances/bastions/profiles) forms
     - The instance/bastion name can be provided via the --name flag or will be prompted interactively
-    - For more information, see: awsdo help instances or awsdo help bastions
+    - The profile name is required for rm profile
+    - For more information, see: awsdo help instances, awsdo help bastions, or awsdo help profiles
 
