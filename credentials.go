@@ -83,13 +83,36 @@ func getCredentials(args []string, config *Configuration) error {
 
 	if *setEnvFlag || *setEnvShort {
 		fmt.Println("Setting environment variables...")
-		os.Setenv("AWS_ACCESS_KEY_ID", credentials["AccessKeyId"].(string))
-		os.Setenv("AWS_SECRET_ACCESS_KEY", credentials["SecretAccessKey"].(string))
-		os.Setenv("AWS_SESSION_TOKEN", credentials["SessionToken"].(string))
+		accessKeyID, err := stringFromCredentialsMap(credentials, "AccessKeyId")
+		if err != nil {
+			return err
+		}
+		secretAccessKey, err := stringFromCredentialsMap(credentials, "SecretAccessKey")
+		if err != nil {
+			return err
+		}
+		sessionToken, err := stringFromCredentialsMap(credentials, "SessionToken")
+		if err != nil {
+			return err
+		}
+		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
+		os.Setenv("AWS_SESSION_TOKEN", sessionToken)
+		fmt.Println("Environment variables set successfully!")
+		fmt.Println()
 	}
 
-	fmt.Println("Environment variables set successfully!")
-	fmt.Println()
-
 	return nil
+}
+
+func stringFromCredentialsMap(m map[string]any, key string) (string, error) {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return "", fmt.Errorf("credentials JSON missing %q field", key)
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("credentials JSON field %q must be a string", key)
+	}
+	return s, nil
 }

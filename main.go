@@ -67,7 +67,10 @@ func main() {
 			case "list", "ls":
 				listInstances(os.Args[3:], &config)
 			case "add":
-				addInstance(os.Args[3:], &config)
+				if err := addInstance(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			case "update":
 				if err := updateInstance(os.Args[3:], &config); err != nil {
 					fmt.Println(err.Error())
@@ -175,9 +178,15 @@ func main() {
 		object := strings.ToLower(os.Args[2])
 		switch object {
 		case "instance", "instances":
-			addInstance(os.Args[3:], &config)
+			if err := addInstance(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
 		case "bastion", "bastions":
-			addBastion(os.Args[3:], &config)
+			if err := addBastion(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
 		case "profile", "profiles":
 			if err := addProfile(os.Args[3:], &config); err != nil {
 				os.Exit(1)

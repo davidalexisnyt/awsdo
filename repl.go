@@ -537,7 +537,9 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		case "list", "ls":
 			listInstances(args[1:], config)
 		case "add":
-			addInstance(args[1:], config)
+			if err := addInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "update":
 			if err := updateInstance(args[1:], config); err != nil {
 				fmt.Println(err.Error())
@@ -632,9 +634,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		object := strings.ToLower(args[0])
 		switch object {
 		case "instance", "instances":
-			addInstance(args[1:], config)
+			if err := addInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "bastion", "bastions":
-			addBastion(args[1:], config)
+			if err := addBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "profile", "profiles":
 			if err := addProfile(args[1:], config); err != nil {
 				fmt.Println(err.Error())
