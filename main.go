@@ -69,7 +69,10 @@ func main() {
 			case "add":
 				addInstance(os.Args[3:], &config)
 			case "update":
-				updateInstance(os.Args[3:], &config)
+				if err := updateInstance(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			case "remove", "rm":
 				removeInstance(os.Args[3:], &config)
 			default:
@@ -79,9 +82,15 @@ func main() {
 			}
 		}
 	case "terminal":
-		startSSMSession(os.Args[2:], &config)
+		if err := startSSMSession(os.Args[2:], &config); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
 	case "bastion":
-		startBastionTunnel(os.Args[2:], &config)
+		if err := startBastionTunnel(os.Args[2:], &config); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
 	case "bastions":
 		if len(os.Args) < 3 {
 			// Default to 'list' if no subcommand provided
@@ -92,9 +101,15 @@ func main() {
 			case "list", "ls":
 				listBastions(os.Args[3:], &config)
 			case "add":
-				addBastion(os.Args[3:], &config)
+				if err := addBastion(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			case "update", "up":
-				updateBastion(os.Args[3:], &config)
+				if err := updateBastion(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			case "remove", "rm":
 				removeBastion(os.Args[3:], &config)
 			default:
@@ -170,6 +185,28 @@ func main() {
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
 			fmt.Println("Use 'awsdo add instance', 'awsdo add bastion', or 'awsdo add profile'")
+			os.Exit(1)
+		}
+	case "update":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: awsdo update <instance|bastion> [options]")
+			os.Exit(1)
+		}
+		object := strings.ToLower(os.Args[2])
+		switch object {
+		case "instance", "instances":
+			if err := updateInstance(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+		case "bastion", "bastions":
+			if err := updateBastion(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+		default:
+			fmt.Printf("Invalid object: %s\n", object)
+			fmt.Println("Use 'awsdo update instance' or 'awsdo update bastion'")
 			os.Exit(1)
 		}
 	case "rm":

@@ -236,14 +236,14 @@ If we have not configured any bastions yet, the `bastions list` results will be 
 New bastions are added using the interactive `bastions add` command.
 
 ```shell
-awsdo bastions add -p <profile>
+awsdo bastions add -p <profile> -f <filter>
 ```
 
-This command will do all the heavy lifting of running multiple AWS commands to gather the information we need to configure our tunnel.
+You can omit `-f` and enter the filter substring when prompted (it matches EC2 Name tags, same idea as `instances add`). This command will do all the heavy lifting of running multiple AWS commands to gather the information we need to configure our tunnel.
 
 1. If we're not already logged in to the specified profile, `awsdo` will first go through the AWS authentication steps.
 2. It runs AWS commands to query for available database instances, then displays the list to us, asking us to select the one we're interested in. The endpoint name and port for the server are saved automatically.
-3. It then runs AWS commands to get a list of available EC2 bastion jump hosts, and presents us with the list so we can pick the appropriate one.
+3. It then runs AWS commands to get a list of available EC2 instances whose Name tag contains the filter substring, and presents us with the list so we can pick the appropriate bastion host. The filter is saved in configuration for later updates.
 4. It asks us for a name for our new bastion tunnel configuration.
 5. Finally, we are prompted for the local port we'd like to use. It tries to find the first open port on our machine from port 7000 or above and offers that as the default, which we can override with our own choice.
 
@@ -253,19 +253,25 @@ Now, if we run the `awsdos bastions list` command, we'll see our new bastion in 
 
 **Updating an Existing Bastion**
 
-To update an existing bastion configuration, use the `bastions update` command:
+To update an existing bastion configuration, use the `bastions update` command (bastion name is a positional argument; omit `-p` when the name is unique across configured profiles):
 
 ```shell
-awsdo bastions update -p <profile> --name <bastion-name>
+awsdo bastions update <bastion-name>
+```
+
+Optional profile and filter overrides:
+
+```shell
+awsdo bastions update -p <profile> -f <filter> <bastion-name>
 ```
 
 Or simply:
 
 ```shell
-awsdo bastions update -p <profile>
+awsdo bastions update
 ```
 
-This will prompt you for the bastion name if not provided, then guide you through the same interactive process as adding a new bastion. The bastion's ID and profile association are preserved during updates.
+This will prompt you for the bastion name if not provided. It uses the saved filter from configuration unless you pass `-f` / `--filter`. Then it guides you through the same interactive process as adding a new bastion. The bastion's ID and profile association are preserved during updates.
 
 **Removing a Bastion**
 

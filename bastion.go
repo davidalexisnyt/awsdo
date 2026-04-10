@@ -222,13 +222,72 @@ func listBastions(args []string, config *Configuration) error {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+type bastionByNameMatch struct {
+	ProfileKey  string
+	BastionName string
+	Bastion     Bastion
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func findBastionsByNameAcrossProfiles(config *Configuration, name string) []bastionByNameMatch {
+	var out []bastionByNameMatch
+	if config.Profiles == nil {
+		return out
+	}
+
+	for pk, prof := range config.Profiles {
+		if prof.Bastions == nil {
+			continue
+		}
+
+		if b, ok := prof.Bastions[name]; ok {
+			out = append(out, bastionByNameMatch{
+				ProfileKey:  pk,
+				BastionName: name,
+				Bastion:     b,
+			})
+		}
+	}
+
+	return out
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func promptChooseAmongBastionMatches(matches []bastionByNameMatch) (bastionByNameMatch, error) {
+	if len(matches) == 0 {
+		return bastionByNameMatch{}, fmt.Errorf("no matches")
+	}
+
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+
+	fmt.Println("Multiple configured bastions match this name:")
+	for i, m := range matches {
+		fmt.Printf("  %d. profile=%s  instance=%s  host=%s\n", i+1, m.ProfileKey, m.Bastion.Instance, m.Bastion.Host)
+	}
+
+	fmt.Print("Select number: ")
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	idx, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil || idx < 1 || idx > len(matches) {
+		return bastionByNameMatch{}, fmt.Errorf("invalid selection")
+	}
+
+	return matches[idx-1], nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func addBastion(args []string, config *Configuration) error {
 	flagSet := flag.NewFlagSet("bastions add", flag.ContinueOnError)
 	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
+	filterFlag := flagSet.String("filter", "", "--filter <filter text>")
+	filterShort := flagSet.String("f", "", "--filter <filter text>")
 
 	flagSet.Usage = func() {
-		fmt.Println("USAGE:\n    awsdo bastions add [--profile <aws cli profile>]")
+		fmt.Println("USAGE:\n    awsdo bastions add [--profile <aws cli profile>] [--filter <filter text>]")
 	}
 
 	if err := flagSet.Parse(args); err != nil {
@@ -256,6 +315,20 @@ func addBastion(args []string, config *Configuration) error {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
+
+	var filter string
+	if *filterFlag != "" {
+		filter = *filterFlag
+	} else if *filterShort != "" {
+		filter = *filterShort
+	} else {
+		fmt.Print("Enter filter text for bastion EC2 Name tag (substring match): ")
+		filterInput, _ := reader.ReadString('\n')
+		filter = strings.TrimSpace(filterInput)
+		if filter == "" {
+			return fmt.Errorf("filter text cannot be empty")
+		}
+	}
 
 	// Query RDS databases
 	fmt.Println("\nQuerying RDS databases...")
@@ -292,7 +365,7 @@ func addBastion(args []string, config *Configuration) error {
 
 	// Query bastion instances
 	fmt.Println("\nQuerying bastion instances...")
-	bastionInstances, err := queryBastionInstances(currentProfile)
+	bastionInstances, err := queryBastionInstances(currentProfile, filter)
 
 	if err != nil {
 		return fmt.Errorf("failed to query bastion instances: %v", err)
@@ -345,6 +418,7 @@ func addBastion(args []string, config *Configuration) error {
 		Name:     bastionName,
 		Profile:  currentProfile,
 		Instance: selectedBastionInstance.Instance,
+		Filter:   filter,
 	}
 
 	if selectedDB != nil {
@@ -414,26 +488,78 @@ func addBastion(args []string, config *Configuration) error {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func updateBastion(args []string, config *Configuration) error {
+	flagTokens, positionals := partitionUpdateSubcommandArgs(args)
+
 	flagSet := flag.NewFlagSet("bastions update", flag.ContinueOnError)
 	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
-	bastionName := flagSet.String("name", "", "--name <bastion name>")
-	bastionNameShort := flagSet.String("n", "", "--name <bastion name>")
+	filterFlag := flagSet.String("filter", "", "--filter <filter text>")
+	filterShort := flagSet.String("f", "", "--filter <filter text>")
 
 	flagSet.Usage = func() {
-		fmt.Println("USAGE:\n    awsdo bastions update [--profile <aws cli profile>] [--name <bastion name>]")
+		fmt.Println("USAGE:\n    awsdo bastions update [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]")
 	}
 
-	if err := flagSet.Parse(args); err != nil {
-		return nil
-	}
-
-	currentProfile, err := ensureProfile(config, profile, profileShort)
-	if err != nil {
+	if err := flagSet.Parse(flagTokens); err != nil {
 		return err
 	}
 
-	// Ensure that we're logged in before running the command
+	reader := bufio.NewReader(os.Stdin)
+
+	var targetBastionName string
+	switch {
+	case len(positionals) > 1:
+		return fmt.Errorf("too many arguments: expected at most one bastion name")
+	case len(positionals) == 1:
+		targetBastionName = positionals[0]
+	default:
+		fmt.Print("Enter bastion name to update: ")
+		nameInput, _ := reader.ReadString('\n')
+		targetBastionName = strings.TrimSpace(nameInput)
+		if targetBastionName == "" {
+			return fmt.Errorf("bastion name is required")
+		}
+	}
+
+	profileExplicit := *profile != "" || *profileShort != ""
+
+	var currentProfile string
+	var err error
+
+	if profileExplicit {
+		currentProfile, err = ensureProfile(config, profile, profileShort)
+		if err != nil {
+			return err
+		}
+	} else {
+		matches := findBastionsByNameAcrossProfiles(config, targetBastionName)
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no configured bastion named '%s' in any profile", targetBastionName)
+		case 1:
+			currentProfile = matches[0].ProfileKey
+		default:
+			chosen, err := promptChooseAmongBastionMatches(matches)
+			if err != nil {
+				return err
+			}
+
+			currentProfile = chosen.ProfileKey
+		}
+	}
+
+	if config.Profiles == nil {
+		config.Profiles = make(map[string]Profile)
+	}
+
+	if _, ok := config.Profiles[currentProfile]; !ok {
+		config.Profiles[currentProfile] = Profile{
+			Name:      currentProfile,
+			Bastions:  make(map[string]Bastion),
+			Instances: make(map[string]Instance),
+		}
+	}
+
 	if !isLoggedIn(currentProfile) {
 		loginArgs := []string{"--profile", currentProfile}
 		if err := login(loginArgs, config); err != nil {
@@ -446,40 +572,14 @@ func updateBastion(args []string, config *Configuration) error {
 		profileInfo.Bastions = make(map[string]Bastion)
 	}
 
-	// Get bastion name
-	var targetBastionName string
-
-	switch {
-	case *bastionName != "":
-		targetBastionName = *bastionName
-	case *bastionNameShort != "":
-		targetBastionName = *bastionNameShort
-	case flagSet.NArg() > 0:
-		targetBastionName = flagSet.Arg(0)
-	default:
-		// Prompt for bastion name
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter bastion name to update: ")
-		nameInput, _ := reader.ReadString('\n')
-		targetBastionName = strings.TrimSpace(nameInput)
-
-		if targetBastionName == "" {
-			return fmt.Errorf("bastion name is required")
-		}
-	}
-
-	// Check if bastion exists
 	existingBastion, exists := profileInfo.Bastions[targetBastionName]
-
 	if !exists {
 		return fmt.Errorf("bastion '%s' not found in profile '%s'", targetBastionName, currentProfile)
 	}
 
-	// Preserve ID and Profile
 	existingBastionID := existingBastion.ID
 
 	if existingBastionID == "" {
-		// Generate ID if missing
 		newID, err := generateBastionID()
 		if err != nil {
 			return fmt.Errorf("failed to generate bastion ID: %v", err)
@@ -488,7 +588,21 @@ func updateBastion(args []string, config *Configuration) error {
 		existingBastionID = newID
 	}
 
-	reader := bufio.NewReader(os.Stdin)
+	var filter string
+	if *filterFlag != "" {
+		filter = *filterFlag
+	} else if *filterShort != "" {
+		filter = *filterShort
+	} else if existingBastion.Filter != "" {
+		filter = existingBastion.Filter
+	} else {
+		fmt.Print("Enter bastion EC2 Name-tag filter substring [bastion]: ")
+		filterInput, _ := reader.ReadString('\n')
+		filter = strings.TrimSpace(filterInput)
+		if filter == "" {
+			filter = "bastion"
+		}
+	}
 
 	// Query RDS databases
 	fmt.Println("\nQuerying RDS databases...")
@@ -526,7 +640,7 @@ func updateBastion(args []string, config *Configuration) error {
 	// Query bastion instances
 	fmt.Println("\nQuerying bastion instances...")
 
-	bastionInstances, err := queryBastionInstances(currentProfile)
+	bastionInstances, err := queryBastionInstances(currentProfile, filter)
 	if err != nil {
 		return fmt.Errorf("failed to query bastion instances: %v", err)
 	}
@@ -558,6 +672,7 @@ func updateBastion(args []string, config *Configuration) error {
 		Name:     targetBastionName,
 		Profile:  currentProfile,
 		Instance: selectedBastionInstance.Instance,
+		Filter:   filter,
 	}
 
 	if selectedDB != nil {

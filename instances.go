@@ -874,6 +874,7 @@ func addInstance(args []string, config *Configuration) error {
 		ID:      selectedInstance.Instance,
 		Profile: currentProfile,
 		Host:    host,
+		Filter:  filter,
 	}
 
 	// Save to configuration
@@ -887,31 +888,84 @@ func addInstance(args []string, config *Configuration) error {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-func updateInstance(args []string, config *Configuration) {
+func updateInstance(args []string, config *Configuration) error {
+	flagTokens, positionals := partitionUpdateSubcommandArgs(args)
+
 	flagSet := flag.NewFlagSet("instances update", flag.ContinueOnError)
 	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
-	instanceName := flagSet.String("name", "", "--name <instance name>")
-	instanceNameShort := flagSet.String("n", "", "--name <instance name>")
+	filterFlag := flagSet.String("filter", "", "--filter <filter text>")
+	filterShort := flagSet.String("f", "", "--filter <filter text>")
 
 	flagSet.Usage = func() {
-		fmt.Println("USAGE:\n    awsdo instances update [--profile <aws cli profile>] [--name <instance name>] [<filter string>]")
+		fmt.Println("USAGE:\n    awsdo instances update [--profile <aws cli profile>] [--filter <filter text>] [<instance name>]")
 	}
 
-	if err := flagSet.Parse(args); err != nil {
-		return
+	if err := flagSet.Parse(flagTokens); err != nil {
+		return err
 	}
 
-	currentProfile, err := ensureProfile(config, profile, profileShort)
-	if err != nil {
-		return
+	reader := bufio.NewReader(os.Stdin)
+
+	var targetInstanceName string
+	switch {
+	case len(positionals) > 1:
+		return fmt.Errorf("too many arguments: expected at most one instance name")
+	case len(positionals) == 1:
+		targetInstanceName = positionals[0]
+	default:
+		fmt.Print("Enter instance name to update: ")
+		nameInput, _ := reader.ReadString('\n')
+		targetInstanceName = strings.TrimSpace(nameInput)
+		if targetInstanceName == "" {
+			return fmt.Errorf("instance name is required")
+		}
+	}
+
+	profileExplicit := *profile != "" || *profileShort != ""
+
+	var currentProfile string
+	var err error
+
+	if profileExplicit {
+		currentProfile, err = ensureProfile(config, profile, profileShort)
+		if err != nil {
+			return err
+		}
+	} else {
+		matches := findInstancesByNameAcrossProfiles(config, targetInstanceName)
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no configured instance named '%s' in any profile", targetInstanceName)
+		case 1:
+			currentProfile = matches[0].ProfileKey
+		default:
+			chosen, err := promptChooseAmongInstanceMatches(matches)
+			if err != nil {
+				return err
+			}
+
+			currentProfile = chosen.ProfileKey
+		}
+	}
+
+	if config.Profiles == nil {
+		config.Profiles = make(map[string]Profile)
+	}
+
+	if _, ok := config.Profiles[currentProfile]; !ok {
+		config.Profiles[currentProfile] = Profile{
+			Name:      currentProfile,
+			Bastions:  make(map[string]Bastion),
+			Instances: make(map[string]Instance),
+		}
 	}
 
 	// Ensure that we're logged in before running the command
 	if !isLoggedIn(currentProfile) {
 		loginArgs := []string{"--profile", currentProfile}
 		if err := login(loginArgs, config); err != nil {
-			return
+			return err
 		}
 	}
 
@@ -920,56 +974,35 @@ func updateInstance(args []string, config *Configuration) {
 		profileInfo.Instances = make(map[string]Instance)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	// Get instance name
-	var targetInstanceName string
-	if *instanceName != "" {
-		targetInstanceName = *instanceName
-	} else if *instanceNameShort != "" {
-		targetInstanceName = *instanceNameShort
-	} else {
-		// Prompt for instance name
-		fmt.Print("Enter instance name to update: ")
-		nameInput, _ := reader.ReadString('\n')
-		targetInstanceName = strings.TrimSpace(nameInput)
-
-		if targetInstanceName == "" {
-			return
-		}
-	}
-
-	// Check if instance exists
 	existingInstance, exists := profileInfo.Instances[targetInstanceName]
 	if !exists {
-		return
+		return fmt.Errorf("instance '%s' not found in profile '%s'", targetInstanceName, currentProfile)
 	}
 
-	// Get filter string (optional - if not provided, prompt for it)
 	var filter string
-	if len(flagSet.Args()) > 0 {
-		filter = flagSet.Args()[0]
+	if *filterFlag != "" {
+		filter = *filterFlag
+	} else if *filterShort != "" {
+		filter = *filterShort
+	} else if existingInstance.Filter != "" {
+		filter = existingInstance.Filter
 	} else {
-		// Prompt for filter string
-		fmt.Print("Enter instance filter string (or press Enter to use existing instance ID): ")
+		fmt.Print("Enter instance filter string: ")
 		filterInput, _ := reader.ReadString('\n')
 		filter = strings.TrimSpace(filterInput)
-
 		if filter == "" {
-			// Use existing instance ID as default filter
-			filter = existingInstance.ID
+			return fmt.Errorf("filter text cannot be empty")
 		}
 	}
 
-	// Query EC2 instances
 	fmt.Println("\nQuerying EC2 instances...")
 	instances, err := queryEC2Instances(currentProfile, filter)
 	if err != nil {
-		return
+		return err
 	}
 
 	if len(instances) == 0 {
-		return
+		return fmt.Errorf("no EC2 instances found matching filter '%s'", filter)
 	}
 
 	// Display instances in a formatted table
@@ -1177,34 +1210,31 @@ func updateInstance(args []string, config *Configuration) {
 		instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
 
 		if err != nil || instIndex < 1 || instIndex > len(instances) {
-			return
+			return fmt.Errorf("invalid selection")
 		}
 
 		selectedInstance = instances[instIndex-1]
 	}
 
-	// Update instance configuration
-	// Preserve Name and Profile, update ID and Host
 	updatedInstance := Instance{
 		Name:    targetInstanceName,
 		ID:      selectedInstance.Instance,
 		Profile: currentProfile,
 		Host:    selectedInstance.Host,
+		Filter:  filter,
 	}
 
-	// If Host is empty, use instance ID as fallback
 	if updatedInstance.Host == "" {
 		updatedInstance.Host = selectedInstance.Instance
 	}
 
-	// Save to configuration
 	profileInfo.Instances[targetInstanceName] = updatedInstance
 	profileInfo.Name = currentProfile
 	config.Profiles[currentProfile] = profileInfo
 
 	fmt.Printf("\nInstance '%s' (ID: %s) updated successfully!\n", targetInstanceName, selectedInstance.Instance)
 
-	return
+	return nil
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1295,6 +1325,96 @@ func removeInstance(args []string, config *Configuration) error {
 	fmt.Printf("\nInstance '%s' removed successfully!\n", targetInstanceName)
 
 	return nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// partitionUpdateSubcommandArgs splits argv so profile/filter flags work when placed after the
+// positional instance or bastion name (Go's flag package stops at the first non-flag argument).
+func partitionUpdateSubcommandArgs(args []string) (forFlagSet []string, positionals []string) {
+	i := 0
+	for i < len(args) {
+		a := args[i]
+		switch a {
+		case "-p", "--profile":
+			forFlagSet = append(forFlagSet, a)
+			i++
+			if i < len(args) {
+				forFlagSet = append(forFlagSet, args[i])
+				i++
+			}
+		case "-f", "--filter":
+			forFlagSet = append(forFlagSet, a)
+			i++
+			if i < len(args) {
+				forFlagSet = append(forFlagSet, args[i])
+				i++
+			}
+		default:
+			if strings.HasPrefix(a, "-") {
+				forFlagSet = append(forFlagSet, a)
+				i++
+			} else {
+				positionals = append(positionals, a)
+				i++
+			}
+		}
+	}
+
+	return forFlagSet, positionals
+}
+
+type instanceByNameMatch struct {
+	ProfileKey   string
+	InstanceName string
+	Instance     Instance
+}
+
+func findInstancesByNameAcrossProfiles(config *Configuration, name string) []instanceByNameMatch {
+	var out []instanceByNameMatch
+	if config.Profiles == nil {
+		return out
+	}
+
+	for pk, prof := range config.Profiles {
+		if prof.Instances == nil {
+			continue
+		}
+
+		if inst, ok := prof.Instances[name]; ok {
+			out = append(out, instanceByNameMatch{
+				ProfileKey:   pk,
+				InstanceName: name,
+				Instance:     inst,
+			})
+		}
+	}
+
+	return out
+}
+
+func promptChooseAmongInstanceMatches(matches []instanceByNameMatch) (instanceByNameMatch, error) {
+	if len(matches) == 0 {
+		return instanceByNameMatch{}, fmt.Errorf("no matches")
+	}
+
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+
+	fmt.Println("Multiple configured instances match this name:")
+	for i, m := range matches {
+		fmt.Printf("  %d. profile=%s  id=%s  host=%s\n", i+1, m.ProfileKey, m.Instance.ID, m.Instance.Host)
+	}
+
+	fmt.Print("Select number: ")
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	idx, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil || idx < 1 || idx > len(matches) {
+		return instanceByNameMatch{}, fmt.Errorf("invalid selection")
+	}
+
+	return matches[idx-1], nil
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

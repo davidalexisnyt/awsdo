@@ -30,6 +30,7 @@ type Instance struct {
 	ID      string `json:"id,omitempty"`
 	Profile string `json:"profile,omitempty"`
 	Host    string `json:"host,omitempty"`
+	Filter  string `json:"filter,omitempty"`
 }
 
 type Bastion struct {
@@ -40,6 +41,7 @@ type Bastion struct {
 	Host      string `json:"host,omitempty"`
 	Port      int    `json:"port,omitempty"`
 	LocalPort int    `json:"localPort,omitempty"`
+	Filter    string `json:"filter,omitempty"`
 }
 
 type RDSDatabase struct {

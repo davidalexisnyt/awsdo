@@ -5,6 +5,7 @@ USAGE:
     awsdo instances list [--profile <aws cli profile>]
     awsdo instances ls [--profile <aws cli profile>]
     awsdo instances add [--profile <aws cli profile>] [--name <instance name>] [--filter <filter text>]
+    awsdo instances update [--profile <aws cli profile>] [--filter <filter text>] [<instance name>]
     awsdo instances remove [--profile <aws cli profile>] [--name <instance name>]
     awsdo instances rm [--profile <aws cli profile>] [--name <instance name>]
 
@@ -17,6 +18,7 @@ USAGE:
     awsdo add bastion [--profile <aws cli profile>]
     awsdo rm instance [--profile <aws cli profile>] [--name <instance name>]
     awsdo rm bastion [--profile <aws cli profile>] [--name <bastion name>]
+    awsdo update instance [--profile <aws cli profile>] [--filter <filter text>] [<instance name>]
     awsdo find instance [--profile <aws cli profile>] [--filter <filter text>]
 
 DESCRIPTION:
@@ -37,6 +39,11 @@ SUBCOMMANDS:
             instances matching the filter, allows selection, and prompts for a name.
             The instance name can also be provided via the --name flag.
 
+    update  Refresh a named instance from AWS using a Name-tag filter. The filter
+            used when adding or updating is saved in configuration and reused on
+            later updates. Profile can be omitted if the instance name is unique
+            across configured profiles.
+
     remove  Remove a named instance from the configuration. Prompts for
             confirmation before removal. The instance name can be provided via
             the --name flag or will be prompted interactively.
@@ -45,7 +52,8 @@ SUBCOMMANDS:
 OPTIONS:
     --profile, -p    AWS CLI profile to use
     --name, -n       Instance name (for add and remove commands)
-    --filter, -f     Filter text to match against instance Name tags (for find and add commands)
+    --filter, -f     Filter text to match against instance Name tags (for find, add,
+                     and update commands)
 
 FIND COMMAND:
     Finds EC2 instances whose Name tag contains the specified filter string.
@@ -85,6 +93,26 @@ ADD COMMAND:
         awsdo instances add -p dev -f myapp
         awsdo instances add -p dev    # Will prompt for filter
         awsdo add instance -f example
+
+UPDATE COMMAND:
+    Updates an existing named instance from AWS:
+    1. Resolves the AWS profile: use -p if provided; otherwise if exactly one
+       configured instance matches the name, use its profile; if several match,
+       you choose which profile to use.
+    2. Uses --filter or -f if provided; otherwise uses the filter saved in
+       configuration from the last add/update; if none is saved, prompts for it.
+    3. Queries EC2, displays matches, and saves the selected instance (including
+       the filter string used).
+
+    The instance name is a positional argument (not --name). Flags may appear
+    before or after the name.
+
+    Examples:
+        awsdo instances update myinstance
+        awsdo instances update -f myapp myinstance
+        awsdo instances update myinstance --filter myapp
+        awsdo instances update -p dev myinstance
+        awsdo update instance myinstance
 
 REMOVE COMMAND:
     Removes a named instance from the configuration:

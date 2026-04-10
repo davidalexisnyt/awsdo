@@ -3,11 +3,12 @@ awsdo bastions - Manage bastion hosts
 USAGE:
     awsdo bastions [list] [--profile <aws cli profile>]
     awsdo bastions ls [--profile <aws cli profile>]
-    awsdo bastions add [--profile <aws cli profile>]
-    awsdo bastions update [--profile <aws cli profile>] [--name <bastion name>]
-    awsdo bastions up [--profile <aws cli profile>] [--name <bastion name>]
+    awsdo bastions add [--profile <aws cli profile>] [--filter <filter text>]
+    awsdo bastions update [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
+    awsdo bastions up [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
     awsdo bastions remove [--profile <aws cli profile>] [--name <bastion name>]
     awsdo bastions rm [--profile <aws cli profile>] [--name <bastion name>]
+    awsdo update bastion [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
 
 DESCRIPTION:
     The bastions command provides subcommands to list, add, update, and remove
@@ -18,13 +19,16 @@ SUBCOMMANDS:
             Displays bastion information in a vertical format.
             Shortcut: ls
 
-    add     Interactively configure a new bastion by querying AWS
-            for RDS databases and EC2 bastion instances.
+    add     Interactively configure a new bastion by querying AWS for RDS
+            databases and EC2 instances whose Name tag contains the filter
+            substring (same as instances add). The filter is saved for later
+            updates.
 
-    update  Update an existing bastion configuration. Prompts for bastion
-            name if not provided via --name flag, then guides through the
-            same interactive process as adding a new bastion.
-            Shortcut: up
+    update  Update an existing bastion configuration. Bastion name is a
+            positional argument (or prompted). Profile can be omitted if the
+            name is unique across configured profiles. Uses --filter, the saved
+            filter, or a prompt. Same interactive flow as add after the filter
+            step. Shortcut: up
 
     remove  Remove a named bastion from the configuration. Prompts for
             confirmation before removal. The bastion name can be provided
@@ -33,7 +37,9 @@ SUBCOMMANDS:
 
 OPTIONS:
     --profile, -p    AWS CLI profile to use
-    --name, -n       Bastion name (for update and remove commands)
+    --filter, -f     Substring for EC2 Name tag when listing bastion instances
+                     (for add and update commands)
+    --name, -n       Bastion name (for remove only; update uses a positional name)
 
 LIST COMMAND:
     Lists all configured bastions for the specified profile in a vertical
@@ -43,19 +49,29 @@ LIST COMMAND:
 
 ADD COMMAND:
     Provides an interactive interface to configure new bastions. The tool will:
-    1. Query and display available RDS databases
-    2. Query and display available bastion EC2 instances
-    3. Allow you to select a database and bastion instance
-    4. Auto-generate a bastion name or prompt for one
-    5. Auto-find an available local port
-    6. Save the configuration
+    1. Prompt for filter text (or use --filter / -f) to find EC2 bastion hosts
+    2. Query and display available RDS databases
+    3. Query and display available bastion EC2 instances matching the filter
+    4. Allow you to select a database and bastion instance
+    5. Auto-generate a bastion name or prompt for one
+    6. Auto-find an available local port
+    7. Save the configuration (including the filter)
 
 UPDATE COMMAND:
     Updates an existing bastion configuration. The bastion's ID and profile
     association are preserved during updates. The command will:
-    1. Prompt for bastion name if not provided via --name flag
-    2. Guide you through the same interactive process as adding a new bastion
-    3. Update the configuration with your selections
+    1. Resolve profile from -p, or from the single matching configured bastion
+       name, or prompt if multiple profiles have the same name
+    2. Use --filter / -f, or the saved filter from configuration, or prompt
+       (default suggestion: bastion)
+    3. Guide you through the same interactive process as adding a new bastion
+    4. Update the configuration with your selections (including the filter)
+
+    Examples:
+        awsdo bastions update mybastion
+        awsdo bastions update -f bastion mybastion
+        awsdo bastions update -p dev mybastion
+        awsdo update bastion mybastion
 
 REMOVE COMMAND:
     Removes a bastion configuration from the specified profile. The command will:

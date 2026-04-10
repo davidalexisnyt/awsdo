@@ -539,7 +539,9 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		case "add":
 			addInstance(args[1:], config)
 		case "update":
-			updateInstance(args[1:], config)
+			if err := updateInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "remove", "rm":
 			removeInstance(args[1:], config)
 		default:
@@ -547,9 +549,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Println("Use 'instances find' to find instances, 'instances list' to list configured instances, 'instances add' to add an instance, 'instances update' to update an instance, 'instances remove' to remove an instance, or 'help instances' for more information.")
 		}
 	case "terminal":
-		startSSMSession(args, config)
+		if err := startSSMSession(args, config); err != nil {
+			fmt.Println(err.Error())
+		}
 	case "bastion":
-		startBastionTunnel(args, config)
+		if err := startBastionTunnel(args, config); err != nil {
+			fmt.Println(err.Error())
+		}
 	case "bastions":
 		if len(args) < 1 {
 			// Default to 'list' if no subcommand provided
@@ -563,9 +569,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		case "list", "ls":
 			listBastions(args[1:], config)
 		case "add":
-			addBastion(args[1:], config)
+			if err := addBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "update", "up":
-			updateBastion(args[1:], config)
+			if err := updateBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		case "remove", "rm":
 			removeBastion(args[1:], config)
 		default:
@@ -632,6 +642,25 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
 			fmt.Println("Use 'add instance', 'add bastion', or 'add profile'")
+		}
+	case "update":
+		if len(args) < 1 {
+			fmt.Println("Usage: update <instance|bastion> [options]")
+			return
+		}
+		object := strings.ToLower(args[0])
+		switch object {
+		case "instance", "instances":
+			if err := updateInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		case "bastion", "bastions":
+			if err := updateBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		default:
+			fmt.Printf("Invalid object: %s\n", object)
+			fmt.Println("Use 'update instance' or 'update bastion'")
 		}
 	case "rm":
 		if len(args) < 1 {

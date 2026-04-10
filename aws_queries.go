@@ -71,14 +71,18 @@ func queryRDSDatabases(profile string) ([]RDSDatabase, error) {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-func queryBastionInstances(profile string) ([]EC2Instance, error) {
+func queryBastionInstances(profile string, filter string) ([]EC2Instance, error) {
+	if filter == "" {
+		filter = "bastion"
+	}
+
 	commandArgs := []string{
 		"ec2",
 		"describe-instances",
 		"--query",
 		"Reservations[*].Instances[*].{Instance:InstanceId,AZ:Placement.AvailabilityZone,Name:Tags[?Key=='Name']|[0].Value}",
 		"--filters",
-		"Name=tag:Name,Values=*bastion*",
+		fmt.Sprintf("Name=tag:Name,Values=*%s*", filter),
 		"--output=json",
 	}
 

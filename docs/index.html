@@ -147,7 +147,8 @@
           <li>
             <code>instances</code> - Manage EC2 instances (find, list, add,
             remove). Also supports Linux-style commands: <code>ls instances</code>,
-            <code>find instance</code>, <code>add instance</code>, <code>rm instance</code>
+            <code>find instance</code>, <code>add instance</code>,
+            <code>update instance</code>, <code>rm instance</code>
           </li>
           <li>
             <code>terminal</code> - Start an SSM terminal session to an EC2
@@ -160,7 +161,8 @@
           <li>
             <code>bastions</code> - Manage bastion hosts (list, add, update,
             remove). Also supports Linux-style commands: <code>ls bastions</code>,
-            <code>add bastion</code>, <code>rm bastion</code>
+            <code>add bastion</code>, <code>update bastion</code>,
+            <code>rm bastion</code>
           </li>
           <li>
             <code>profiles</code> - Add or list AWS CLI profiles
@@ -505,6 +507,27 @@ Enter filter text: example</code></pre>
           <li>Save the instance configuration</li>
         </ol>
 
+        <h4>Updating a Named Instance</h4>
+
+        <p>
+          To refresh a named instance from AWS using the saved Name-tag filter
+          (or override with <code>--filter</code> / <code>-f</code>):
+        </p>
+
+        <pre><code class="language-shell">awsdo instances update myinstance</code></pre>
+
+        <p>
+          If you omit <code>-p</code>, the profile is taken from configuration:
+          when only one profile has an instance with that name, it is used
+          automatically; otherwise you pick from a list. The filter used on add
+          or last update is stored and reused; pass
+          <code>--filter</code> to use a different search string.
+        </p>
+
+        <pre><code class="language-shell">awsdo instances update -f myapp myinstance
+awsdo instances update myinstance --filter myapp
+awsdo instances update -p dev myinstance</code></pre>
+
         <h4>Removing a Named Instance</h4>
 
         <p>To remove a named instance:</p>
@@ -798,7 +821,7 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
           <code>bastions add</code> command.
         </p>
 
-        <pre><code class="language-shell">awsdo bastions add -p &lt;profile&gt;</code></pre>
+        <pre><code class="language-shell">awsdo bastions add -p &lt;profile&gt; -f &lt;filter&gt;</code></pre>
 
         <p>
           You can also use the Linux-style command pattern:
@@ -824,9 +847,11 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
             automatically.
           </li>
           <li>
-            It then runs AWS commands to get a list of available EC2 bastion
-            jump hosts, and presents us with the list so we can pick the
-            appropriate one.
+            It then runs AWS commands to get a list of available EC2 instances
+            whose Name tag contains the filter substring (provided with
+            <code>--filter</code> / <code>-f</code> or prompted), presents the
+            list so we can pick the appropriate bastion host, and saves that
+            filter in the configuration for later updates.
           </li>
           <li>
             It asks us for a name for our new bastion tunnel configuration.
@@ -856,19 +881,27 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
           <code>bastions update</code> command:
         </p>
 
-        <pre><code class="language-shell">awsdo bastions update -p &lt;profile&gt; --name &lt;bastion-name&gt;</code></pre>
+        <pre><code class="language-shell">awsdo bastions update &lt;bastion-name&gt;</code></pre>
 
         <p>Or use the shortcut:</p>
 
-        <pre><code class="language-shell">awsdo bastions up -p &lt;profile&gt; --name &lt;bastion-name&gt;</code></pre>
+        <pre><code class="language-shell">awsdo bastions up &lt;bastion-name&gt;</code></pre>
 
-        <p>Or simply:</p>
+        <p>With optional profile and filter overrides:</p>
 
-        <pre><code class="language-shell">awsdo bastions update -p &lt;profile&gt;</code></pre>
+        <pre><code class="language-shell">awsdo bastions update -p &lt;profile&gt; -f &lt;filter&gt; &lt;bastion-name&gt;
+awsdo bastions update &lt;bastion-name&gt; --filter &lt;filter&gt;</code></pre>
+
+        <p>Or simply (prompts for bastion name if omitted):</p>
+
+        <pre><code class="language-shell">awsdo bastions update</code></pre>
 
         <p>
-          This will prompt you for the bastion name if not provided, then guide
-          you through the same interactive process as adding a new bastion. The
+          If you omit <code>-p</code>, the profile is resolved from configuration
+          when the bastion name is unique across profiles. The filter used when
+          adding or last updating is reused unless you pass
+          <code>--filter</code> / <code>-f</code>. The command then guides you
+          through the same interactive process as adding a new bastion. The
           bastion's ID and profile association are preserved during updates.
         </p>
 
@@ -1007,6 +1040,14 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
               </li>
               <li>
                 <code>add bastion</code> - Add a new bastion
+              </li>
+              <li>
+                <code>update instance</code> - Update a configured instance (same
+                as <code>instances update</code>)
+              </li>
+              <li>
+                <code>update bastion</code> - Update a configured bastion (same
+                as <code>bastions update</code>)
               </li>
               <li>
                 <code>add profile &lt;name&gt;</code> - Add new AWS SSO profile

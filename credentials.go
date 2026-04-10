@@ -14,11 +14,15 @@ func getCredentials(args []string, config *Configuration) error {
 	flagSet := flag.NewFlagSet("get-credentials", flag.ContinueOnError)
 	profileFlag := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
+	setEnvFlag := flagSet.Bool("set-env", false, "--set-env <set environment variables>")
+	setEnvShort := flagSet.Bool("e", false, "--set-env <set environment variables>")
 
 	flagSet.Usage = func() {
 		fmt.Println("USAGE:")
 		fmt.Println("    awsdo get-credentials [--profile <aws cli profile>]")
 		fmt.Println("    awsdo get-credentials [-p <aws cli profile>]")
+		fmt.Println("    awsdo get-credentials [--set-env]")
+		fmt.Println("    awsdo get-credentials [-e]")
 	}
 
 	if err := flagSet.Parse(args); err != nil {
@@ -75,6 +79,16 @@ func getCredentials(args []string, config *Configuration) error {
 	fmt.Println("--------------------------------")
 	fmt.Println("Expiration:    ", credentials["Expiration"])
 	fmt.Println("--------------------------------")
+	fmt.Println()
+
+	if *setEnvFlag || *setEnvShort {
+		fmt.Println("Setting environment variables...")
+		os.Setenv("AWS_ACCESS_KEY_ID", credentials["AccessKeyId"].(string))
+		os.Setenv("AWS_SECRET_ACCESS_KEY", credentials["SecretAccessKey"].(string))
+		os.Setenv("AWS_SESSION_TOKEN", credentials["SessionToken"].(string))
+	}
+
+	fmt.Println("Environment variables set successfully!")
 	fmt.Println()
 
 	return nil

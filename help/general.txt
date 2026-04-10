@@ -21,6 +21,7 @@ COMMANDS:
     # Linux-style commands (alternative syntax)
     ls, list    List instances, bastions, or profiles (e.g., 'ls instances', 'list bastions', 'ls profiles')
     add         Add an instance, bastion, or profile (e.g., 'add instance', 'add bastion', 'add profile')
+    update      Update a configured instance or bastion (e.g., 'update instance', 'update bastion')
     rm          Remove an instance, bastion, or profile (e.g., 'rm instance', 'rm bastion', 'rm profile')
     find        Find instances (e.g., 'find instance')
 
