@@ -546,9 +546,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			}
 		case "remove", "rm":
 			removeInstance(args[1:], config)
+		case "rename", "mv":
+			if err := renameInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		default:
 			fmt.Printf("Invalid instances subcommand: %s\n", subcommand)
-			fmt.Println("Use 'instances find' to find instances, 'instances list' to list configured instances, 'instances add' to add an instance, 'instances update' to update an instance, 'instances remove' to remove an instance, or 'help instances' for more information.")
+			fmt.Println("Use 'instances find' to find instances, 'instances list' to list configured instances, 'instances add' to add an instance, 'instances update' to update an instance, 'instances rename' to rename an instance, 'instances remove' to remove an instance, or 'help instances' for more information.")
 		}
 	case "terminal":
 		if err := startSSMSession(args, config); err != nil {
@@ -580,9 +584,13 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			}
 		case "remove", "rm":
 			removeBastion(args[1:], config)
+		case "rename", "mv":
+			if err := renameBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		default:
 			fmt.Printf("Invalid bastions subcommand: %s\n", subcommand)
-			fmt.Println("Use 'bastions list' to list bastions, 'bastions add' to add a new bastion, 'bastions update' to update an existing bastion, or 'bastions remove' to remove a bastion.")
+			fmt.Println("Use 'bastions list' to list bastions, 'bastions add' to add a new bastion, 'bastions update' to update an existing bastion, 'bastions rename' to rename a bastion, or 'bastions remove' to remove a bastion.")
 		}
 	case "profiles":
 		if len(args) < 1 {
@@ -685,6 +693,25 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
 			fmt.Println("Use 'rm instance', 'rm bastion', or 'rm profile'")
+		}
+	case "rename", "mv":
+		if len(args) < 1 {
+			fmt.Println("Usage: rename <instance|bastion> [options] <old name> <new name>")
+			return
+		}
+		object := strings.ToLower(args[0])
+		switch object {
+		case "instance", "instances":
+			if err := renameInstance(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		case "bastion", "bastions":
+			if err := renameBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
+		default:
+			fmt.Printf("Invalid object: %s\n", object)
+			fmt.Println("Use 'rename instance' or 'rename bastion'")
 		}
 	case "find":
 		if len(args) < 1 {

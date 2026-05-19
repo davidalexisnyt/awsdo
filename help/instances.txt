@@ -6,6 +6,8 @@ USAGE:
     awsdo instances ls [--profile <aws cli profile>]
     awsdo instances add [--profile <aws cli profile>] [--name <instance name>] [--filter <filter text>]
     awsdo instances update [--profile <aws cli profile>] [--filter <filter text>] [<instance name>]
+    awsdo instances rename [--profile <aws cli profile>] <old name> <new name>
+    awsdo instances mv [--profile <aws cli profile>] <old name> <new name>
     awsdo instances remove [--profile <aws cli profile>] [--name <instance name>]
     awsdo instances rm [--profile <aws cli profile>] [--name <instance name>]
 
@@ -19,6 +21,8 @@ USAGE:
     awsdo rm instance [--profile <aws cli profile>] [--name <instance name>]
     awsdo rm bastion [--profile <aws cli profile>] [--name <bastion name>]
     awsdo update instance [--profile <aws cli profile>] [--filter <filter text>] [<instance name>]
+    awsdo rename instance [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv instance [--profile <aws cli profile>] <old name> <new name>
     awsdo find instance [--profile <aws cli profile>] [--filter <filter text>]
 
 DESCRIPTION:
@@ -43,6 +47,12 @@ SUBCOMMANDS:
             used when adding or updating is saved in configuration and reused on
             later updates. Profile can be omitted if the instance name is unique
             across configured profiles.
+
+    rename  Rename a configured instance. Takes <old name> and <new name> as
+            positional arguments (or prompts for them). Profile can be omitted
+            if the instance name is unique across configured profiles. The
+            DefaultInstance is updated automatically if the renamed instance
+            was the default. Shortcut: mv
 
     remove  Remove a named instance from the configuration. Prompts for
             confirmation before removal. The instance name can be provided via
@@ -113,6 +123,22 @@ UPDATE COMMAND:
         awsdo instances update myinstance --filter myapp
         awsdo instances update -p dev myinstance
         awsdo update instance myinstance
+
+RENAME COMMAND:
+    Renames an existing named instance:
+    1. Resolves the AWS profile: use -p if provided; otherwise if exactly one
+       configured instance matches the old name, use its profile; if several
+       match, you choose which profile to use.
+    2. Verifies the new name does not already exist in the target profile.
+    3. Updates the instance entry under the new name and updates the default
+       instance pointer if the renamed instance was the default.
+
+    Examples:
+        awsdo instances rename oldname newname
+        awsdo instances mv oldname newname
+        awsdo instances rename -p dev oldname newname
+        awsdo rename instance oldname newname
+        awsdo mv instance oldname newname
 
 REMOVE COMMAND:
     Removes a named instance from the configuration:

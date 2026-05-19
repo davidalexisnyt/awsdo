@@ -1062,6 +1062,125 @@ func removeBastion(args []string, config *Configuration) error {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func renameBastion(args []string, config *Configuration) error {
+	flagSet := flag.NewFlagSet("bastions rename", flag.ContinueOnError)
+	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
+	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
+
+	flagSet.Usage = func() {
+		fmt.Println("USAGE:\n    awsdo bastions rename [--profile <aws cli profile>] <old name> <new name>")
+	}
+
+	if err := flagSet.Parse(args); err != nil {
+		return nil
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	positionals := flagSet.Args()
+	if len(positionals) > 2 {
+		return fmt.Errorf("too many arguments: expected <old name> <new name>")
+	}
+
+	var oldName, newName string
+
+	if len(positionals) >= 1 {
+		oldName = positionals[0]
+	} else {
+		fmt.Print("Enter current bastion name: ")
+		input, _ := reader.ReadString('\n')
+		oldName = strings.TrimSpace(input)
+		if oldName == "" {
+			return fmt.Errorf("current bastion name is required")
+		}
+	}
+
+	if len(positionals) == 2 {
+		newName = positionals[1]
+	} else {
+		fmt.Print("Enter new bastion name: ")
+		input, _ := reader.ReadString('\n')
+		newName = strings.TrimSpace(input)
+		if newName == "" {
+			return fmt.Errorf("new bastion name is required")
+		}
+	}
+
+	if oldName == newName {
+		return fmt.Errorf("new name is the same as the current name")
+	}
+
+	profileExplicit := *profile != "" || *profileShort != ""
+
+	var currentProfile string
+	var err error
+
+	if profileExplicit {
+		currentProfile, err = ensureProfile(config, profile, profileShort)
+		if err != nil {
+			return err
+		}
+	} else {
+		matches := findBastionsByNameAcrossProfiles(config, oldName)
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no configured bastion named '%s' in any profile", oldName)
+		case 1:
+			currentProfile = matches[0].ProfileKey
+		default:
+			chosen, err := promptChooseAmongBastionMatches(matches)
+			if err != nil {
+				return err
+			}
+			currentProfile = chosen.ProfileKey
+		}
+	}
+
+	profileInfo, ok := config.Profiles[currentProfile]
+	if !ok {
+		return fmt.Errorf("profile '%s' not found", currentProfile)
+	}
+
+	if profileInfo.Bastions == nil {
+		return fmt.Errorf("no bastions configured for profile '%s'", currentProfile)
+	}
+
+	existingBastion, exists := profileInfo.Bastions[oldName]
+	if !exists {
+		return fmt.Errorf("bastion '%s' not found in profile '%s'", oldName, currentProfile)
+	}
+
+	if _, conflicts := profileInfo.Bastions[newName]; conflicts {
+		return fmt.Errorf("bastion '%s' already exists in profile '%s'", newName, currentProfile)
+	}
+
+	existingBastion.Name = newName
+	profileInfo.Bastions[newName] = existingBastion
+	delete(profileInfo.Bastions, oldName)
+
+	if profileInfo.DefaultBastion == oldName {
+		profileInfo.DefaultBastion = newName
+	}
+
+	if existingBastion.ID != "" {
+		if config.BastionLookup == nil {
+			config.BastionLookup = make(map[string]BastionLookup)
+		}
+		config.BastionLookup[existingBastion.ID] = BastionLookup{
+			Profile: currentProfile,
+			Name:    newName,
+		}
+	}
+
+	profileInfo.Name = currentProfile
+	config.Profiles[currentProfile] = profileInfo
+
+	fmt.Printf("\nBastion '%s' renamed to '%s' in profile '%s'.\n", oldName, newName, currentProfile)
+
+	return nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func selectBastionByName(profileInfo Profile, name string) (Bastion, error) {
 	if len(profileInfo.Bastions) == 0 {
 		return Bastion{}, fmt.Errorf("no bastions configured for this profile")

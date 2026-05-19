@@ -1,0 +1,64 @@
+awsdo rename / mv - Rename instances or bastions (alias commands)
+
+USAGE:
+    awsdo rename instance [--profile <aws cli profile>] <old name> <new name>
+    awsdo rename instances [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv instance [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv instances [--profile <aws cli profile>] <old name> <new name>
+
+    awsdo rename bastion [--profile <aws cli profile>] <old name> <new name>
+    awsdo rename bastions [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv bastion [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv bastions [--profile <aws cli profile>] <old name> <new name>
+
+DESCRIPTION:
+    The 'rename' and 'mv' commands are aliases for 'instances rename' and
+    'bastions rename'. They provide a Linux-style alternative syntax for
+    renaming configured items.
+
+    These commands are equivalent to:
+    - awsdo instances rename [options] <old name> <new name>
+    - awsdo bastions rename [options] <old name> <new name>
+
+RENAMING INSTANCES:
+    Renames a configured EC2 instance entry. The command will:
+    1. Resolve the AWS profile: use -p if provided; otherwise if exactly one
+       configured instance matches the old name, use its profile; if several
+       match, you choose which profile to use.
+    2. Verify the new name does not already exist in the target profile.
+    3. Update the instance entry under the new name and update the default
+       instance pointer if the renamed instance was the default.
+
+    Examples:
+        awsdo rename instance oldname newname
+        awsdo mv instance oldname newname
+        awsdo rename instance -p dev oldname newname
+        awsdo instances rename oldname newname
+        awsdo instances mv oldname newname
+
+RENAMING BASTIONS:
+    Renames a configured bastion entry. The command will:
+    1. Resolve the AWS profile (same logic as instance rename).
+    2. Verify the new name does not already exist in the target profile.
+    3. Update the bastion entry under the new name, refresh the bastion ID
+       lookup map, and update the default bastion pointer if applicable.
+
+    Examples:
+        awsdo rename bastion oldname newname
+        awsdo mv bastion oldname newname
+        awsdo rename bastion -p dev oldname newname
+        awsdo bastions rename oldname newname
+        awsdo bastions mv oldname newname
+
+OPTIONS:
+    --profile, -p    AWS CLI profile to use. Optional when the old name is
+                     unique across configured profiles.
+
+NOTES:
+    - Both 'rename' and 'mv' are valid command names
+    - You can use either singular (instance/bastion) or plural
+      (instances/bastions) forms
+    - Old and new names are positional arguments. If omitted, you will be
+      prompted for them interactively.
+    - For more information, see: awsdo help instances or awsdo help bastions
+

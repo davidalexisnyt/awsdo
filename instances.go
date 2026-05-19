@@ -1328,6 +1328,115 @@ func removeInstance(args []string, config *Configuration) error {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func renameInstance(args []string, config *Configuration) error {
+	flagSet := flag.NewFlagSet("instances rename", flag.ContinueOnError)
+	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
+	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
+
+	flagSet.Usage = func() {
+		fmt.Println("USAGE:\n    awsdo instances rename [--profile <aws cli profile>] <old name> <new name>")
+	}
+
+	if err := flagSet.Parse(args); err != nil {
+		return nil
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	positionals := flagSet.Args()
+	if len(positionals) > 2 {
+		return fmt.Errorf("too many arguments: expected <old name> <new name>")
+	}
+
+	var oldName, newName string
+
+	if len(positionals) >= 1 {
+		oldName = positionals[0]
+	} else {
+		fmt.Print("Enter current instance name: ")
+		input, _ := reader.ReadString('\n')
+		oldName = strings.TrimSpace(input)
+		if oldName == "" {
+			return fmt.Errorf("current instance name is required")
+		}
+	}
+
+	if len(positionals) == 2 {
+		newName = positionals[1]
+	} else {
+		fmt.Print("Enter new instance name: ")
+		input, _ := reader.ReadString('\n')
+		newName = strings.TrimSpace(input)
+		if newName == "" {
+			return fmt.Errorf("new instance name is required")
+		}
+	}
+
+	if oldName == newName {
+		return fmt.Errorf("new name is the same as the current name")
+	}
+
+	profileExplicit := *profile != "" || *profileShort != ""
+
+	var currentProfile string
+	var err error
+
+	if profileExplicit {
+		currentProfile, err = ensureProfile(config, profile, profileShort)
+		if err != nil {
+			return err
+		}
+	} else {
+		matches := findInstancesByNameAcrossProfiles(config, oldName)
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no configured instance named '%s' in any profile", oldName)
+		case 1:
+			currentProfile = matches[0].ProfileKey
+		default:
+			chosen, err := promptChooseAmongInstanceMatches(matches)
+			if err != nil {
+				return err
+			}
+			currentProfile = chosen.ProfileKey
+		}
+	}
+
+	profileInfo, ok := config.Profiles[currentProfile]
+	if !ok {
+		return fmt.Errorf("profile '%s' not found", currentProfile)
+	}
+
+	if profileInfo.Instances == nil {
+		return fmt.Errorf("no instances configured for profile '%s'", currentProfile)
+	}
+
+	existingInstance, exists := profileInfo.Instances[oldName]
+	if !exists {
+		return fmt.Errorf("instance '%s' not found in profile '%s'", oldName, currentProfile)
+	}
+
+	if _, conflicts := profileInfo.Instances[newName]; conflicts {
+		return fmt.Errorf("instance '%s' already exists in profile '%s'", newName, currentProfile)
+	}
+
+	existingInstance.Name = newName
+	profileInfo.Instances[newName] = existingInstance
+	delete(profileInfo.Instances, oldName)
+
+	if profileInfo.DefaultInstance == oldName {
+		profileInfo.DefaultInstance = newName
+	}
+
+	profileInfo.Name = currentProfile
+	config.Profiles[currentProfile] = profileInfo
+
+	fmt.Printf("\nInstance '%s' renamed to '%s' in profile '%s'.\n", oldName, newName, currentProfile)
+
+	return nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // partitionUpdateSubcommandArgs splits argv so profile/filter flags work when placed after the
 // positional instance or bastion name (Go's flag package stops at the first non-flag argument).
 func partitionUpdateSubcommandArgs(args []string) (forFlagSet []string, positionals []string) {

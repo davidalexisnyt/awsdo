@@ -78,9 +78,14 @@ func main() {
 				}
 			case "remove", "rm":
 				removeInstance(os.Args[3:], &config)
+			case "rename", "mv":
+				if err := renameInstance(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			default:
 				fmt.Printf("Invalid instances subcommand: %s\n", subcommand)
-				fmt.Println("Use 'awsdo instances find' to find instances, 'awsdo instances list' to list configured instances, 'awsdo instances add' to add an instance, 'awsdo instances update' to update an instance, 'awsdo instances remove' to remove an instance, or 'awsdo help instances' for more information.")
+				fmt.Println("Use 'awsdo instances find' to find instances, 'awsdo instances list' to list configured instances, 'awsdo instances add' to add an instance, 'awsdo instances update' to update an instance, 'awsdo instances rename' to rename an instance, 'awsdo instances remove' to remove an instance, or 'awsdo help instances' for more information.")
 				os.Exit(1)
 			}
 		}
@@ -115,9 +120,14 @@ func main() {
 				}
 			case "remove", "rm":
 				removeBastion(os.Args[3:], &config)
+			case "rename", "mv":
+				if err := renameBastion(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			default:
 				fmt.Printf("Invalid bastions subcommand: %s\n", subcommand)
-				fmt.Println("Use 'awsdo bastions list' to list bastions, 'awsdo bastions add' to add a new bastion, 'awsdo bastions update' to update an existing bastion, or 'awsdo bastions remove' to remove a bastion.")
+				fmt.Println("Use 'awsdo bastions list' to list bastions, 'awsdo bastions add' to add a new bastion, 'awsdo bastions update' to update an existing bastion, 'awsdo bastions rename' to rename a bastion, or 'awsdo bastions remove' to remove a bastion.")
 				os.Exit(1)
 			}
 		}
@@ -236,6 +246,28 @@ func main() {
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
 			fmt.Println("Use 'awsdo rm instance', 'awsdo rm bastion', or 'awsdo rm profile'")
+			os.Exit(1)
+		}
+	case "rename", "mv":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: awsdo rename <instance|bastion> [options] <old name> <new name>")
+			os.Exit(1)
+		}
+		object := strings.ToLower(os.Args[2])
+		switch object {
+		case "instance", "instances":
+			if err := renameInstance(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+		case "bastion", "bastions":
+			if err := renameBastion(os.Args[3:], &config); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+		default:
+			fmt.Printf("Invalid object: %s\n", object)
+			fmt.Println("Use 'awsdo rename instance' or 'awsdo rename bastion'")
 			os.Exit(1)
 		}
 	case "find":

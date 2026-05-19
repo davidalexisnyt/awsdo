@@ -6,9 +6,13 @@ USAGE:
     awsdo bastions add [--profile <aws cli profile>] [--filter <filter text>]
     awsdo bastions update [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
     awsdo bastions up [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
+    awsdo bastions rename [--profile <aws cli profile>] <old name> <new name>
+    awsdo bastions mv [--profile <aws cli profile>] <old name> <new name>
     awsdo bastions remove [--profile <aws cli profile>] [--name <bastion name>]
     awsdo bastions rm [--profile <aws cli profile>] [--name <bastion name>]
     awsdo update bastion [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
+    awsdo rename bastion [--profile <aws cli profile>] <old name> <new name>
+    awsdo mv bastion [--profile <aws cli profile>] <old name> <new name>
 
 DESCRIPTION:
     The bastions command provides subcommands to list, add, update, and remove
@@ -29,6 +33,12 @@ SUBCOMMANDS:
             name is unique across configured profiles. Uses --filter, the saved
             filter, or a prompt. Same interactive flow as add after the filter
             step. Shortcut: up
+
+    rename  Rename a configured bastion. Takes <old name> and <new name> as
+            positional arguments (or prompts for them). Profile can be omitted
+            if the bastion name is unique across configured profiles. The
+            DefaultBastion pointer and bastion ID lookup are updated
+            automatically. Shortcut: mv
 
     remove  Remove a named bastion from the configuration. Prompts for
             confirmation before removal. The bastion name can be provided
@@ -72,6 +82,22 @@ UPDATE COMMAND:
         awsdo bastions update -f bastion mybastion
         awsdo bastions update -p dev mybastion
         awsdo update bastion mybastion
+
+RENAME COMMAND:
+    Renames an existing bastion:
+    1. Resolves the AWS profile: use -p if provided; otherwise if exactly one
+       configured bastion matches the old name, use its profile; if several
+       match, you choose which profile to use.
+    2. Verifies the new name does not already exist in the target profile.
+    3. Updates the bastion entry under the new name, refreshes the bastion ID
+       lookup map, and updates the default bastion pointer if applicable.
+
+    Examples:
+        awsdo bastions rename oldname newname
+        awsdo bastions mv oldname newname
+        awsdo bastions rename -p dev oldname newname
+        awsdo rename bastion oldname newname
+        awsdo mv bastion oldname newname
 
 REMOVE COMMAND:
     Removes a bastion configuration from the specified profile. The command will:

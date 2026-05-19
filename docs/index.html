@@ -146,9 +146,11 @@
           </li>
           <li>
             <code>instances</code> - Manage EC2 instances (find, list, add,
-            remove). Also supports Linux-style commands: <code>ls instances</code>,
-            <code>find instance</code>, <code>add instance</code>,
-            <code>update instance</code>, <code>rm instance</code>
+            update, rename, remove). Also supports Linux-style commands:
+            <code>ls instances</code>, <code>find instance</code>,
+            <code>add instance</code>, <code>update instance</code>,
+            <code>rename instance</code>, <code>mv instance</code>,
+            <code>rm instance</code>
           </li>
           <li>
             <code>terminal</code> - Start an SSM terminal session to an EC2
@@ -160,9 +162,10 @@
           </li>
           <li>
             <code>bastions</code> - Manage bastion hosts (list, add, update,
-            remove). Also supports Linux-style commands: <code>ls bastions</code>,
-            <code>add bastion</code>, <code>update bastion</code>,
-            <code>rm bastion</code>
+            rename, remove). Also supports Linux-style commands:
+            <code>ls bastions</code>, <code>add bastion</code>,
+            <code>update bastion</code>, <code>rename bastion</code>,
+            <code>mv bastion</code>, <code>rm bastion</code>
           </li>
           <li>
             <code>profiles</code> - Add or list AWS CLI profiles
@@ -527,6 +530,34 @@ Enter filter text: example</code></pre>
         <pre><code class="language-shell">awsdo instances update -f myapp myinstance
 awsdo instances update myinstance --filter myapp
 awsdo instances update -p dev myinstance</code></pre>
+
+        <h4>Renaming a Named Instance</h4>
+
+        <p>
+          To rename a named instance, pass the old and new names as positional
+          arguments:
+        </p>
+
+        <pre><code class="language-shell">awsdo instances rename myapp myapp-prod</code></pre>
+
+        <p>Or use the shortcut:</p>
+
+        <pre><code class="language-shell">awsdo instances mv myapp myapp-prod</code></pre>
+
+        <p>
+          You can also use the Linux-style command pattern:
+        </p>
+
+        <pre><code class="language-shell">awsdo rename instance myapp myapp-prod
+awsdo mv instance myapp myapp-prod</code></pre>
+
+        <p>
+          If you omit <code>-p</code>, the profile is taken from configuration:
+          when only one profile has an instance with that name, it is used
+          automatically; otherwise you pick from a list. The default instance
+          pointer is updated automatically if the renamed instance was the
+          default for its profile.
+        </p>
 
         <h4>Removing a Named Instance</h4>
 
@@ -905,6 +936,34 @@ awsdo bastions update &lt;bastion-name&gt; --filter &lt;filter&gt;</code></pre>
           bastion's ID and profile association are preserved during updates.
         </p>
 
+        <p><strong>Renaming a Bastion</strong></p>
+
+        <p>
+          To rename a bastion, pass the old and new names as positional
+          arguments:
+        </p>
+
+        <pre><code class="language-shell">awsdo bastions rename &lt;old-name&gt; &lt;new-name&gt;</code></pre>
+
+        <p>Or use the shortcut:</p>
+
+        <pre><code class="language-shell">awsdo bastions mv &lt;old-name&gt; &lt;new-name&gt;</code></pre>
+
+        <p>
+          You can also use the Linux-style command pattern:
+        </p>
+
+        <pre><code class="language-shell">awsdo rename bastion &lt;old-name&gt; &lt;new-name&gt;
+awsdo mv bastion &lt;old-name&gt; &lt;new-name&gt;</code></pre>
+
+        <p>
+          If you omit <code>-p</code>, the profile is resolved from configuration
+          when the bastion name is unique across profiles. The bastion's ID and
+          profile association are preserved during the rename, and the default
+          bastion pointer is updated automatically if the renamed bastion was
+          the default for its profile.
+        </p>
+
         <p><strong>Removing a Bastion</strong></p>
 
         <p>
@@ -1051,6 +1110,16 @@ awsdo bastions update &lt;bastion-name&gt; --filter &lt;filter&gt;</code></pre>
               </li>
               <li>
                 <code>add profile &lt;name&gt;</code> - Add new AWS SSO profile
+              </li>
+              <li>
+                <code>rename instance &lt;old&gt; &lt;new&gt;</code> or
+                <code>mv instance &lt;old&gt; &lt;new&gt;</code> - Rename a
+                configured instance
+              </li>
+              <li>
+                <code>rename bastion &lt;old&gt; &lt;new&gt;</code> or
+                <code>mv bastion &lt;old&gt; &lt;new&gt;</code> - Rename a
+                configured bastion
               </li>
               <li>
                 <code>rm instance</code> - Remove an instance
@@ -1202,12 +1271,15 @@ awsdo help bastions
 awsdo help bastions list
 awsdo help bastions add
 awsdo help bastions update
+awsdo help bastions rename
 awsdo help bastions remove
 awsdo help instances
 awsdo help instances find
 awsdo help instances list
 awsdo help instances add
+awsdo help instances rename
 awsdo help instances remove
+awsdo help rename
 awsdo help terminal
 # etc.</code></pre>
 

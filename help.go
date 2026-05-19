@@ -47,6 +47,9 @@ var helpRepl string
 //go:embed help/rm.txt
 var helpRm string
 
+//go:embed help/rename.txt
+var helpRename string
+
 //go:embed help/ls.txt
 var helpLs string
 
@@ -173,6 +176,8 @@ func showHelp(command string) {
 		fmt.Print(helpHelp)
 	case "rm", "remove":
 		fmt.Print(helpRm)
+	case "rename", "mv":
+		fmt.Print(helpRename)
 	case "ls", "list", "ls profiles", "list profiles":
 		fmt.Print(helpLs)
 	case "profiles", "profiles add", "profiles list", "profiles remove", "profiles rm":
