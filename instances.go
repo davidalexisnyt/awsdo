@@ -112,6 +112,10 @@ func findInstances(args []string, config *Configuration) error {
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+		}
 	}()
 
 	err = command.Start()
@@ -125,6 +129,10 @@ func findInstances(args []string, config *Configuration) error {
 
 	for scanner.Scan() {
 		outputDoc.WriteString(strings.Trim(scanner.Text(), " "))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
 	}
 
 	command.Wait()

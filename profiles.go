@@ -19,6 +19,7 @@ func profileExistsInAWSConfig(name string) bool {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "[profile ") {
@@ -32,6 +33,12 @@ func profileExistsInAWSConfig(name string) bool {
 			return true
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading AWS config file: %v\n", err)
+		return false
+	}
+
 	return false
 }
 

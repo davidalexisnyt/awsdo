@@ -40,6 +40,10 @@ func queryRDSDatabases(profile string) ([]RDSDatabase, error) {
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+		}
 	}()
 
 	err = command.Start()
@@ -53,6 +57,10 @@ func queryRDSDatabases(profile string) ([]RDSDatabase, error) {
 
 	for scanner.Scan() {
 		outputDoc.WriteString(strings.Trim(scanner.Text(), " "))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	command.Wait()
@@ -108,6 +116,10 @@ func queryBastionInstances(profile string, filter string) ([]EC2Instance, error)
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+		}
 	}()
 
 	err = command.Start()
@@ -121,6 +133,10 @@ func queryBastionInstances(profile string, filter string) ([]EC2Instance, error)
 
 	for scanner.Scan() {
 		outputDoc.WriteString(strings.Trim(scanner.Text(), " "))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	command.Wait()
@@ -181,6 +197,10 @@ func queryEC2Instances(profile string, filter string) ([]EC2Instance, error) {
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+		}
 	}()
 
 	err = command.Start()
@@ -194,6 +214,10 @@ func queryEC2Instances(profile string, filter string) ([]EC2Instance, error) {
 
 	for scanner.Scan() {
 		outputDoc.WriteString(strings.Trim(scanner.Text(), " "))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	command.Wait()

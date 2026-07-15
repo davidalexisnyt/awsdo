@@ -24,7 +24,12 @@ func initCommand(config *Configuration) error {
 	fmt.Println("Checking prerequisites...")
 	awsCLIInstalled := checkAWSCLI()
 	ssmPluginInstalled := checkSSMPlugin()
-	hasProfiles := checkAWSConfig()
+	hasProfiles, err := checkAWSConfig()
+
+	if err != nil {
+		fmt.Printf("failed to check AWS config: %v\n", err)
+		return fmt.Errorf("failed to check AWS config: %w", err)
+	}
 
 	fmt.Println()
 
@@ -121,17 +126,17 @@ func checkSSMPlugin() bool {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // checkAWSConfig checks if AWS config file exists and has profiles
-func checkAWSConfig() bool {
+func checkAWSConfig() (bool, error) {
 	configPath := getAWSConfigPath()
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return false
+		return false, nil
 	}
 
 	// Read config file and check for profile sections
 	file, err := os.Open(configPath)
 	if err != nil {
-		return false
+		return false, err
 	}
 	defer file.Close()
 
@@ -140,11 +145,15 @@ func checkAWSConfig() bool {
 		line := strings.TrimSpace(scanner.Text())
 
 		if strings.HasPrefix(line, "[profile ") || strings.HasPrefix(line, "[default]") {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	return false, nil
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -284,7 +284,6 @@ func main() {
 			fmt.Println("Use 'awsdo find instance'")
 			os.Exit(1)
 		}
-
 	case "version":
 		fmt.Println("awsdo version", Version)
 		return

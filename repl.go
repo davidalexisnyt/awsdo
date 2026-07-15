@@ -597,7 +597,9 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			listProfiles(args, config)
 			return
 		}
+
 		subcommand := strings.ToLower(args[0])
+
 		switch subcommand {
 		case "add":
 			if err := addProfile(args[1:], config); err != nil {
@@ -621,8 +623,11 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		if len(args) < 1 {
 			fmt.Println("Usage: ls <instances|bastions|profiles> [options]")
 			fmt.Println("   or: list <instances|bastions|profiles> [options]")
+			return
 		}
+
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instances", "instance":
 			listInstances(args[1:], config)
@@ -637,9 +642,11 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 	case "add":
 		if len(args) < 1 {
 			fmt.Println("Usage: add <instance|bastion|profile> [options]")
+			return
 		}
 
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instance", "instances":
 			if err := addInstance(args[1:], config); err != nil {
@@ -662,7 +669,9 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Println("Usage: update <instance|bastion> [options]")
 			return
 		}
+
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instance", "instances":
 			if err := updateInstance(args[1:], config); err != nil {
@@ -671,6 +680,7 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 		case "bastion", "bastions":
 			if err := updateBastion(args[1:], config); err != nil {
 				fmt.Println(err.Error())
+				return
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
@@ -679,8 +689,11 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 	case "rm":
 		if len(args) < 1 {
 			fmt.Println("Usage: rm <instance|bastion|profile> [options]")
+			return
 		}
+
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instance", "instances":
 			removeInstance(args[1:], config)
@@ -699,7 +712,9 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Println("Usage: rename <instance|bastion> [options] <old name> <new name>")
 			return
 		}
+
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instance", "instances":
 			if err := renameInstance(args[1:], config); err != nil {
@@ -716,8 +731,11 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 	case "find":
 		if len(args) < 1 {
 			fmt.Println("Usage: find <instance> [options]")
+			return
 		}
+
 		object := strings.ToLower(args[0])
+
 		switch object {
 		case "instance", "instances":
 			findInstances(args[1:], config)
@@ -725,6 +743,12 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Printf("Invalid object: %s\n", object)
 			fmt.Println("Use 'find instance'")
 		}
+	case "version":
+		fmt.Println("awsdo version", Version)
+		return
+	case "repl":
+		fmt.Println("You are already in the REPL mode.")
+		return
 	default:
 		fmt.Printf("Invalid command: %s\n", command)
 		fmt.Println("Use 'help' to see available commands.")
