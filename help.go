@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sync/atomic"
 	"time"
 )
 
@@ -118,6 +119,63 @@ func showDocs() {
 	if err := server.Shutdown(ctx); err != nil {
 		fmt.Printf("Documentation server shutdown error: %v\n", err)
 	}
+}
+
+// docsServerActive tracks whether a docs server is currently running in the REPL.
+var docsServerActive atomic.Bool
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// startDocsServerBackground starts the documentation HTTP server in the background and opens the
+// browser, then returns immediately so the REPL can continue. The server is shut down when ctx
+// is cancelled (i.e. when the REPL exits). If a server is already running, a message is printed
+// and no new server is started.
+func startDocsServerBackground(ctx context.Context) {
+	if docsServerActive.Load() {
+		fmt.Println("Documentation server is already running.")
+		return
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/styles.css" {
+			w.Header().Set("Content-Type", "text/css")
+			fmt.Fprint(w, docsCSS)
+		} else {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, docsHTML)
+		}
+	})
+
+	port, err := findAvailableLocalPort(8080)
+	if err != nil {
+		fmt.Printf("Error finding available local port: %v\n", err)
+		return
+	}
+
+	url := fmt.Sprintf("http://localhost:%d", port)
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: mux}
+
+	docsServerActive.Store(true)
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Error starting documentation server: %v\n", err)
+		}
+	}()
+
+	go openBrowser(url)
+
+	go func() {
+		<-ctx.Done()
+		ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctxShutdown); err != nil {
+			fmt.Printf("Documentation server shutdown error: %v\n", err)
+		}
+		docsServerActive.Store(false)
+	}()
+
+	fmt.Printf("Documentation server started at %s (will stop when REPL exits).\n", url)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

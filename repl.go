@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -385,6 +386,9 @@ func readLineWithEditing(reader *bufio.Reader, editor *lineEditor) (string, erro
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // startREPL starts the interactive REPL mode
 func startREPL(configFile string, config *Configuration) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Print intro text
 	fmt.Println("\nWelcome to the awsdo REPL!")
 	fmt.Println("Type 'help' for available commands, or 'exit'/'quit' to exit.")
@@ -489,7 +493,7 @@ func startREPL(configFile string, config *Configuration) {
 		}
 
 		// Execute command
-		executeREPLCommand(command, args[1:], config)
+		executeREPLCommand(ctx, command, args[1:], config)
 
 		// Save configuration after successful command
 		saveConfiguration(configFile, config)
@@ -505,7 +509,7 @@ func startREPL(configFile string, config *Configuration) {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // executeREPLCommand routes commands to the appropriate handlers (similar to main.go)
-func executeREPLCommand(command string, args []string, config *Configuration) {
+func executeREPLCommand(ctx context.Context, command string, args []string, config *Configuration) {
 	fmt.Println()
 
 	switch command {
@@ -616,7 +620,7 @@ func executeREPLCommand(command string, args []string, config *Configuration) {
 			fmt.Println("Use 'profiles add <name>', 'profiles list', or 'profiles remove <name>'")
 		}
 	case "docs":
-		showDocs()
+		startDocsServerBackground(ctx)
 	case "clear", "cls", "clr", ".c":
 		fmt.Print(clearScreen)
 	case "ls", "list":
