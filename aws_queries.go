@@ -9,7 +9,7 @@ import (
 )
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-func queryRDSDatabases(profile string) ([]RDSDatabase, error) {
+func queryRDSDatabases(profile string, filter string) ([]RDSDatabase, error) {
 	commandArgs := []string{
 		"rds",
 		"describe-db-instances",
@@ -73,6 +73,19 @@ func queryRDSDatabases(profile string) ([]RDSDatabase, error) {
 	var databases []RDSDatabase
 	if err := json.Unmarshal([]byte(output), &databases); err != nil {
 		return nil, fmt.Errorf("failed to parse RDS database list: %v", err)
+	}
+
+	if filter != "" {
+		filterLower := strings.ToLower(filter)
+		filtered := make([]RDSDatabase, 0, len(databases))
+
+		for _, db := range databases {
+			if strings.Contains(strings.ToLower(db.DBInstanceIdentifier), filterLower) {
+				filtered = append(filtered, db)
+			}
+		}
+
+		databases = filtered
 	}
 
 	return databases, nil

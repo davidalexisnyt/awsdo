@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -8,8 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 )
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -41,6 +45,50 @@ func generateBastionID() (string, error) {
 	}
 
 	return hex.EncodeToString(bytes), nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// confirmPrompt displays a yes/no question and returns true if the user answers yes.
+// When stdin is a terminal, accepts a single keypress (y/n) without requiring Enter.
+// Falls back to line input when stdin is not a terminal (pipes, scripts).
+func confirmPrompt(question string) bool {
+	fmt.Printf("%s [y/n]: ", question)
+
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		oldState, err := term.MakeRaw(fd)
+		if err == nil {
+			defer term.Restore(fd, oldState)
+		}
+
+		buf := make([]byte, 1)
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil || n == 0 {
+				fmt.Println()
+				return false
+			}
+			key := buf[0]
+			switch {
+			case key == 'y' || key == 'Y':
+				fmt.Println("y")
+				return true
+			case key == 'n' || key == 'N' || key == 13 || key == '\r' || key == '\n':
+				fmt.Println("n")
+				return false
+			case key == 3 || key == 27: // Ctrl-C or Escape
+				fmt.Println("n")
+				return false
+			}
+			// Ignore any other key and wait for a valid response
+		}
+	}
+
+	// Non-terminal fallback (piped input, scripts)
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	line = strings.TrimSpace(strings.ToLower(line))
+	return line == "y" || line == "yes"
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

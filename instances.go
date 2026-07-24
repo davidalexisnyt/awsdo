@@ -1309,11 +1309,7 @@ func removeInstance(args []string, config *Configuration) error {
 	fmt.Printf("  Host:    %s\n", existingInstance.Host)
 
 	// Ask for confirmation
-	fmt.Print("\nAre you sure you want to remove this instance? (yes/no): ")
-	confirmation, _ := reader.ReadString('\n')
-	confirmation = strings.TrimSpace(strings.ToLower(confirmation))
-
-	if confirmation != "yes" && confirmation != "y" {
+	if !confirmPrompt("\nAre you sure you want to remove this instance?") {
 		fmt.Println("Removal cancelled.")
 		return nil
 	}

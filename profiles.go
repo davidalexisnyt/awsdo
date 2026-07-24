@@ -126,12 +126,7 @@ func removeProfile(args []string, config *Configuration) error {
 	}
 
 	// Ask for confirmation
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("\nAre you sure you want to remove this profile? (yes/no): ")
-	confirmation, _ := reader.ReadString('\n')
-	confirmation = strings.TrimSpace(strings.ToLower(confirmation))
-
-	if confirmation != "yes" && confirmation != "y" {
+	if !confirmPrompt("\nAre you sure you want to remove this profile?") {
 		fmt.Println("Removal cancelled.")
 		return nil
 	}

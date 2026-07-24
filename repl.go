@@ -592,6 +592,10 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 			if err := renameBastion(args[1:], config); err != nil {
 				fmt.Println(err.Error())
 			}
+		case "set":
+			if err := setBastion(args[1:], config); err != nil {
+				fmt.Println(err.Error())
+			}
 		default:
 			fmt.Printf("Invalid bastions subcommand: %s\n", subcommand)
 			fmt.Println("Use 'bastions list' to list bastions, 'bastions add' to add a new bastion, 'bastions update' to update an existing bastion, 'bastions rename' to rename a bastion, or 'bastions remove' to remove a bastion.")
@@ -682,9 +686,24 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 				fmt.Println(err.Error())
 			}
 		case "bastion", "bastions":
-			if err := updateBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
-				return
+			bastionArgs := args[1:]
+			isSet := false
+			for _, a := range bastionArgs {
+				if a == "--host" || strings.HasPrefix(a, "--host=") ||
+					a == "--port" || strings.HasPrefix(a, "--port=") ||
+					a == "--local-port" || strings.HasPrefix(a, "--local-port=") {
+					isSet = true
+					break
+				}
+			}
+			if isSet {
+				if err := setBastion(bastionArgs, config); err != nil {
+					fmt.Println(err.Error())
+				}
+			} else {
+				if err := updateBastion(bastionArgs, config); err != nil {
+					fmt.Println(err.Error())
+				}
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)

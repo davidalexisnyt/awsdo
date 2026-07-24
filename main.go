@@ -118,6 +118,11 @@ func main() {
 					fmt.Println(err.Error())
 					os.Exit(1)
 				}
+			case "set":
+				if err := setBastion(os.Args[3:], &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			case "remove", "rm":
 				removeBastion(os.Args[3:], &config)
 			case "rename", "mv":
@@ -219,9 +224,27 @@ func main() {
 				os.Exit(1)
 			}
 		case "bastion", "bastions":
-			if err := updateBastion(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
+			args := os.Args[3:]
+			isSet := false
+			for _, a := range args {
+				if a == "--host" || strings.HasPrefix(a, "--host=") ||
+					a == "--port" || strings.HasPrefix(a, "--port=") ||
+					a == "--local-port" || strings.HasPrefix(a, "--local-port=") {
+					isSet = true
+					break
+				}
+			}
+
+			if isSet {
+				if err := setBastion(args, &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
+			} else {
+				if err := updateBastion(args, &config); err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)

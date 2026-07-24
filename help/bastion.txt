@@ -19,6 +19,12 @@ DESCRIPTION:
     If both --name and --profile are specified, the tool only searches
     for the bastion in the specified profile.
 
+    If the bastion EC2 instance is no longer connected (e.g. a deployment
+    replaced it), the error is detected and you are prompted to refresh the
+    bastion configuration. If you confirm, the update command runs
+    interactively to select the new EC2 instance, and the tunnel is retried
+    automatically.
+
 OPTIONS:
     --profile, -p         AWS CLI profile to use
     --name               Name of the configured bastion to use

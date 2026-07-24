@@ -6,16 +6,18 @@ USAGE:
     awsdo bastions add [--profile <aws cli profile>] [--filter <filter text>]
     awsdo bastions update [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
     awsdo bastions up [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
+    awsdo bastions set [--profile <aws cli profile>] <bastion name> [--host <host>] [--port <port>] [--local-port <port>] [--filter <filter>]
     awsdo bastions rename [--profile <aws cli profile>] <old name> <new name>
     awsdo bastions mv [--profile <aws cli profile>] <old name> <new name>
     awsdo bastions remove [--profile <aws cli profile>] [--name <bastion name>]
     awsdo bastions rm [--profile <aws cli profile>] [--name <bastion name>]
     awsdo update bastion [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
+    awsdo update bastion [--profile <aws cli profile>] <bastion name> [--host <host>] [--port <port>] [--local-port <port>]
     awsdo rename bastion [--profile <aws cli profile>] <old name> <new name>
     awsdo mv bastion [--profile <aws cli profile>] <old name> <new name>
 
 DESCRIPTION:
-    The bastions command provides subcommands to list, add, update, and remove
+    The bastions command provides subcommands to list, add, update, set, and remove
     bastion hosts. If no subcommand is provided, defaults to 'list'.
 
 SUBCOMMANDS:
@@ -28,11 +30,18 @@ SUBCOMMANDS:
             substring (same as instances add). The filter is saved for later
             updates.
 
-    update  Update an existing bastion configuration. Bastion name is a
-            positional argument (or prompted). Profile can be omitted if the
-            name is unique across configured profiles. Uses --filter, the saved
-            filter, or a prompt. Same interactive flow as add after the filter
-            step. Shortcut: up
+    update  Refresh an existing bastion's EC2 instance from AWS. Bastion name
+            is a positional argument (or prompted). Profile can be omitted if
+            the name is unique across configured profiles. Uses --filter, the
+            saved filter, or a prompt. If a matching RDS database is found and
+            selected, the host and port are updated from it; otherwise the
+            existing host, port, and local port are preserved. If only one RDS
+            database or EC2 instance matches, it is selected automatically.
+            Shortcut: up
+
+    set     Directly update one or more stored fields of an existing bastion
+            without querying AWS. At least one flag must be provided.
+            Shortcut: (none)
 
     rename  Rename a configured bastion. Takes <old name> and <new name> as
             positional arguments (or prompts for them). Profile can be omitted
@@ -48,8 +57,11 @@ SUBCOMMANDS:
 OPTIONS:
     --profile, -p    AWS CLI profile to use
     --filter, -f     Substring for EC2 Name tag when listing bastion instances
-                     (for add and update commands)
+                     (for add and update commands; saved for future updates)
     --name, -n       Bastion name (for remove only; update uses a positional name)
+    --host           Remote host to set (for set command)
+    --port           Remote port to set (for set command)
+    --local-port     Local tunnel port to set (for set command)
 
 LIST COMMAND:
     Lists all configured bastions for the specified profile in a vertical
@@ -60,7 +72,7 @@ LIST COMMAND:
 ADD COMMAND:
     Provides an interactive interface to configure new bastions. The tool will:
     1. Prompt for filter text (or use --filter / -f) to find EC2 bastion hosts
-    2. Query and display available RDS databases
+    2. Query and display available RDS databases matching the filter
     3. Query and display available bastion EC2 instances matching the filter
     4. Allow you to select a database and bastion instance
     5. Auto-generate a bastion name or prompt for one
@@ -68,20 +80,48 @@ ADD COMMAND:
     7. Save the configuration (including the filter)
 
 UPDATE COMMAND:
-    Updates an existing bastion configuration. The bastion's ID and profile
-    association are preserved during updates. The command will:
+    Updates an existing bastion's EC2 instance from AWS. The bastion's ID,
+    profile association, host, port, and local port are preserved unless an
+    RDS database is newly selected. The command will:
     1. Resolve profile from -p, or from the single matching configured bastion
        name, or prompt if multiple profiles have the same name
     2. Use --filter / -f, or the saved filter from configuration, or prompt
        (default suggestion: bastion)
-    3. Guide you through the same interactive process as adding a new bastion
-    4. Update the configuration with your selections (including the filter)
+    3. Query RDS databases matching the filter; if exactly one matches, select
+       it automatically and update host/port from it
+    4. Query EC2 bastion instances; if exactly one matches, select it
+       automatically
+    5. Preserve existing host, port, and local port when no DB is selected
 
     Examples:
         awsdo bastions update mybastion
         awsdo bastions update -f bastion mybastion
         awsdo bastions update -p dev mybastion
         awsdo update bastion mybastion
+        awsdo update bastion mybastion --port 5433
+        awsdo update bastion mybastion --host newdb.internal.com --port 5433
+        awsdo update bastion mybastion --local-port 7010
+
+SET COMMAND:
+    Directly sets one or more stored fields of an existing bastion without
+    querying AWS. Only the specified fields are changed; all others are
+    preserved. At least one flag must be provided.
+
+    Options:
+        --host <host>          Set the remote database host
+        --port <n>             Set the remote database port
+        --local-port <n>       Set the local tunnel port
+        --filter <text>        Set the EC2 Name tag filter used by update
+
+    The bastion name is a positional argument (or prompted). Flags and the
+    name can appear in any order.
+
+    Examples:
+        awsdo bastions set mybastion --port 5433
+        awsdo bastions set mybastion --host newdb.internal.com --port 5433
+        awsdo bastions set mybastion --local-port 7010
+        awsdo bastions set mybastion --filter prod-bastion
+        awsdo bastions set mybastion -p dev --port 5432
 
 RENAME COMMAND:
     Renames an existing bastion:
@@ -103,6 +143,6 @@ REMOVE COMMAND:
     Removes a bastion configuration from the specified profile. The command will:
     1. Prompt for bastion name if not provided via --name or -n flag
     2. Display the bastion information
-    3. Ask for confirmation before removal
+    3. Ask for confirmation before removal (press y or n — no Enter needed)
     4. Clear the default bastion if the removed bastion was the default
 

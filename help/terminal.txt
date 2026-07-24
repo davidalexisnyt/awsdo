@@ -13,6 +13,12 @@ DESCRIPTION:
     and not found in the default profile, all profiles are searched.
     Automatically logs in if session has expired.
 
+    If the target EC2 instance is no longer connected (e.g. a deployment
+    replaced it), the error is detected and you are prompted to refresh the
+    instance configuration. If you confirm, the update command runs
+    interactively to select the new instance, and the session is retried
+    automatically.
+
 EXAMPLES:
     awsdo terminal
         Connects to the default instance of the default profile.

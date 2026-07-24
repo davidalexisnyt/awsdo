@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -332,7 +334,7 @@ func addBastion(args []string, config *Configuration) error {
 
 	// Query RDS databases
 	fmt.Println("\nQuerying RDS databases...")
-	databases, err := queryRDSDatabases(currentProfile)
+	databases, err := queryRDSDatabases(currentProfile, filter)
 	if err != nil {
 		return fmt.Errorf("failed to query RDS databases: %v", err)
 	}
@@ -606,7 +608,7 @@ func updateBastion(args []string, config *Configuration) error {
 
 	// Query RDS databases
 	fmt.Println("\nQuerying RDS databases...")
-	databases, err := queryRDSDatabases(currentProfile)
+	databases, err := queryRDSDatabases(currentProfile, filter)
 	if err != nil {
 		return fmt.Errorf("failed to query RDS databases: %v", err)
 	}
@@ -614,16 +616,17 @@ func updateBastion(args []string, config *Configuration) error {
 	if len(databases) == 0 {
 		fmt.Println("No RDS databases found.")
 	} else {
-		// Display databases and let user select
 		fmt.Println("\nAvailable RDS databases:")
-
 		for i, db := range databases {
 			fmt.Printf("  %d. %s (%s) - %s:%d\n", i+1, db.DBInstanceIdentifier, db.Engine, db.Endpoint, db.Port)
 		}
 	}
 
 	var selectedDB *RDSDatabase
-	if len(databases) > 0 {
+	if len(databases) == 1 {
+		selectedDB = &databases[0]
+		fmt.Printf("\nAutomatically selected database '%s' (%s) since it's the only result.\n", selectedDB.DBInstanceIdentifier, selectedDB.Engine)
+	} else if len(databases) > 1 {
 		fmt.Print("\nSelect database number (or 0 to skip): ")
 		dbSelection, _ := reader.ReadString('\n')
 
@@ -649,22 +652,26 @@ func updateBastion(args []string, config *Configuration) error {
 		return fmt.Errorf("no bastion instances found")
 	}
 
-	// Display bastion instances and let user select
-	fmt.Println("\nAvailable bastion instances:")
+	var selectedBastionInstance EC2Instance
+	if len(bastionInstances) == 1 {
+		selectedBastionInstance = bastionInstances[0]
+		fmt.Printf("\nAutomatically selected bastion instance '%s' (ID: %s) since it's the only result.\n", selectedBastionInstance.Name, selectedBastionInstance.Instance)
+	} else {
+		fmt.Println("\nAvailable bastion instances:")
+		for i, inst := range bastionInstances {
+			fmt.Printf("  %d. %s (%s)\n", i+1, inst.Name, inst.Instance)
+		}
 
-	for i, inst := range bastionInstances {
-		fmt.Printf("  %d. %s (%s)\n", i+1, inst.Name, inst.Instance)
+		fmt.Print("\nSelect bastion instance number: ")
+		instSelection, _ := reader.ReadString('\n')
+
+		instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
+		if err != nil || instIndex < 1 || instIndex > len(bastionInstances) {
+			return fmt.Errorf("invalid selection")
+		}
+
+		selectedBastionInstance = bastionInstances[instIndex-1]
 	}
-
-	fmt.Print("\nSelect bastion instance number: ")
-	instSelection, _ := reader.ReadString('\n')
-
-	instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
-	if err != nil || instIndex < 1 || instIndex > len(bastionInstances) {
-		return fmt.Errorf("invalid selection")
-	}
-
-	selectedBastionInstance := bastionInstances[instIndex-1]
 
 	// Update bastion configuration
 	updatedBastion := Bastion{
@@ -679,41 +686,11 @@ func updateBastion(args []string, config *Configuration) error {
 		updatedBastion.Host = selectedDB.Endpoint
 		updatedBastion.Port = selectedDB.Port
 	} else {
-		// Prompt for host and port
-		fmt.Print("Enter remote host: ")
-		host, _ := reader.ReadString('\n')
-		updatedBastion.Host = strings.TrimSpace(host)
-
-		fmt.Print("Enter remote port: ")
-		portStr, _ := reader.ReadString('\n')
-
-		port, err := strconv.Atoi(strings.TrimSpace(portStr))
-		if err != nil {
-			return fmt.Errorf("invalid port: %v", err)
-		}
-
-		updatedBastion.Port = port
+		updatedBastion.Host = existingBastion.Host
+		updatedBastion.Port = existingBastion.Port
 	}
 
-	// Find available local port
-	localPort, err := findAvailableLocalPort(7000)
-	if err != nil {
-		return fmt.Errorf("failed to find available local port: %v", err)
-	}
-
-	fmt.Printf("Using local port: %d\n", localPort)
-	fmt.Print("Enter local port (or press Enter to use suggested): ")
-	localPortStr, _ := reader.ReadString('\n')
-	localPortStr = strings.TrimSpace(localPortStr)
-
-	if localPortStr != "" {
-		customPort, err := strconv.Atoi(localPortStr)
-		if err == nil {
-			localPort = customPort
-		}
-	}
-
-	updatedBastion.LocalPort = localPort
+	updatedBastion.LocalPort = existingBastion.LocalPort
 
 	// Save to configuration
 	profileInfo.Bastions[targetBastionName] = updatedBastion
@@ -732,6 +709,137 @@ func updateBastion(args []string, config *Configuration) error {
 
 	fmt.Printf("\nBastion '%s' (ID: %s) updated successfully!\n", targetBastionName, existingBastionID)
 
+	return nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// partitionSetBastionArgs splits args into flag tokens (consumed as flag+value pairs) and bare
+// positional arguments. This allows mixing a positional bastion name with flags in any order,
+// e.g. "my-bastion --port 5433" or "--port 5433 my-bastion".
+func partitionSetBastionArgs(args []string) (forFlagSet []string, positionals []string) {
+	i := 0
+
+	for i < len(args) {
+		a := args[i]
+		if strings.HasPrefix(a, "-") {
+			if strings.Contains(a, "=") {
+				// --flag=value form: single self-contained token
+				forFlagSet = append(forFlagSet, a)
+				i++
+			} else {
+				// --flag value form: consume the next token as the value
+				forFlagSet = append(forFlagSet, a)
+				i++
+
+				if i < len(args) && !strings.HasPrefix(args[i], "-") {
+					forFlagSet = append(forFlagSet, args[i])
+					i++
+				}
+			}
+		} else {
+			positionals = append(positionals, a)
+			i++
+		}
+	}
+
+	return forFlagSet, positionals
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func setBastion(args []string, config *Configuration) error {
+	flagTokens, positionals := partitionSetBastionArgs(args)
+
+	flagSet := flag.NewFlagSet("bastions set", flag.ContinueOnError)
+	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
+	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
+	hostFlag := flagSet.String("host", "", "--host <remote host>")
+	portFlag := flagSet.Int("port", 0, "--port <remote port>")
+	localPortFlag := flagSet.Int("local-port", 0, "--local-port <local port>")
+	filterFlag := flagSet.String("filter", "", "--filter <filter text>")
+	filterShort := flagSet.String("f", "", "--filter <filter text>")
+
+	flagSet.Usage = func() {
+		fmt.Println("USAGE:")
+		fmt.Println("    awsdo bastions set [--profile <aws cli profile>] <bastion name>")
+		fmt.Println("                      [--host <remote host>] [--port <remote port>]")
+		fmt.Println("                      [--local-port <local port>] [--filter <filter text>]")
+	}
+
+	if err := flagSet.Parse(flagTokens); err != nil {
+		return nil
+	}
+
+	if *hostFlag == "" && *portFlag == 0 && *localPortFlag == 0 && *filterFlag == "" && *filterShort == "" {
+		flagSet.Usage()
+		return fmt.Errorf("at least one field must be specified: --host, --port, --local-port, or --filter")
+	}
+
+	var targetBastionName string
+	if len(positionals) > 0 {
+		targetBastionName = positionals[0]
+	} else {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter bastion name: ")
+		input, _ := reader.ReadString('\n')
+		targetBastionName = strings.TrimSpace(input)
+		if targetBastionName == "" {
+			return fmt.Errorf("bastion name is required")
+		}
+	}
+
+	profileExplicit := *profile != "" || *profileShort != ""
+	var currentProfile string
+	var err error
+
+	if profileExplicit {
+		currentProfile, err = ensureProfile(config, profile, profileShort)
+		if err != nil {
+			return err
+		}
+	} else {
+		matches := findBastionsByNameAcrossProfiles(config, targetBastionName)
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no configured bastion named '%s' in any profile", targetBastionName)
+		case 1:
+			currentProfile = matches[0].ProfileKey
+		default:
+			chosen, err := promptChooseAmongBastionMatches(matches)
+			if err != nil {
+				return err
+			}
+			currentProfile = chosen.ProfileKey
+		}
+	}
+
+	profileInfo := config.Profiles[currentProfile]
+	existingBastion, exists := profileInfo.Bastions[targetBastionName]
+	if !exists {
+		return fmt.Errorf("bastion '%s' not found in profile '%s'", targetBastionName, currentProfile)
+	}
+
+	if *hostFlag != "" {
+		existingBastion.Host = *hostFlag
+	}
+	if *portFlag != 0 {
+		existingBastion.Port = *portFlag
+	}
+	if *localPortFlag != 0 {
+		existingBastion.LocalPort = *localPortFlag
+	}
+	filter := *filterFlag
+	if *filterShort != "" {
+		filter = *filterShort
+	}
+	if filter != "" {
+		existingBastion.Filter = filter
+	}
+
+	profileInfo.Bastions[targetBastionName] = existingBastion
+	profileInfo.Name = currentProfile
+	config.Profiles[currentProfile] = profileInfo
+
+	fmt.Printf("\nBastion '%s' updated successfully!\n", targetBastionName)
 	return nil
 }
 
@@ -914,9 +1022,11 @@ func startBastionTunnel(args []string, config *Configuration) error {
 	fmt.Printf("\nStarting port forwarding session to %s:%d via bastion %s...\n", bastion.Host, bastion.LocalPort, bastion.Instance)
 	fmt.Println("Press Ctrl-C to stop the tunnel and return to the REPL.")
 
+	var stderrBuf bytes.Buffer
+
 	command := exec.Command("aws", commandArgs...)
 	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+	command.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	command.Stdin = os.Stdin
 
 	if err := command.Start(); err != nil {
@@ -956,6 +1066,21 @@ func startBastionTunnel(args []string, config *Configuration) error {
 					return nil
 				}
 			}
+
+			if strings.Contains(stderrBuf.String(), "TargetNotConnected") {
+				if confirmPrompt(fmt.Sprintf("\nBastion '%s' is no longer connected. Refresh its configuration?", bastion.Name)) {
+					updateArgs := []string{bastion.Name}
+					if bastionProfile != "" {
+						updateArgs = append([]string{"--profile", bastionProfile}, updateArgs...)
+					}
+					if updateErr := updateBastion(updateArgs, config); updateErr != nil {
+						return updateErr
+					}
+					return startBastionTunnel(args, config)
+				}
+				return nil
+			}
+
 			return fmt.Errorf("session ended with error: %v", err)
 		}
 
@@ -1030,11 +1155,7 @@ func removeBastion(args []string, config *Configuration) error {
 	fmt.Printf("  Local Port: %d\n", existingBastion.LocalPort)
 
 	// Ask for confirmation
-	fmt.Print("\nAre you sure you want to remove this bastion? (yes/no): ")
-	confirmation, _ := reader.ReadString('\n')
-	confirmation = strings.TrimSpace(strings.ToLower(confirmation))
-
-	if confirmation != "yes" && confirmation != "y" {
+	if !confirmPrompt("\nAre you sure you want to remove this bastion?") {
 		fmt.Println("Removal cancelled.")
 		return nil
 	}

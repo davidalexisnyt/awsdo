@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 )
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -253,12 +256,57 @@ func startSSMSession(args []string, config *Configuration) error {
 
 	fmt.Println("\nStarting SSM session...")
 
+	var stderrBuf bytes.Buffer
+
 	command := exec.Command("aws", commandArgs...)
 	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+	command.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	command.Stdin = os.Stdin
 
 	if err = command.Run(); err != nil {
+		if strings.Contains(stderrBuf.String(), "TargetNotConnected") {
+			if confirmPrompt(fmt.Sprintf("\nInstance '%s' is no longer connected. Refresh its configuration?", instance.Name)) {
+				updateArgs := []string{instance.Name}
+				if currentProfile != "" {
+					updateArgs = append([]string{"--profile", currentProfile}, updateArgs...)
+				}
+
+				if updateErr := updateInstance(updateArgs, config); updateErr != nil {
+					return updateErr
+				}
+
+				// Fetch the refreshed instance and retry the SSM session
+				updatedProfileInfo := config.Profiles[currentProfile]
+				updatedInstance, lookupErr := selectInstanceByName(updatedProfileInfo, instance.Name)
+				if lookupErr != nil {
+					return lookupErr
+				}
+
+				retryArgs := []string{"ssm", "start-session", "--target", updatedInstance.ID}
+				if currentProfile != "" {
+					retryArgs = append(retryArgs, "--profile", currentProfile)
+				}
+
+				retryMsg := fmt.Sprintf("Connecting to instance %s%s%s (ID: %s) using profile %s%s%s", greenColor, updatedInstance.Name, resetColor, updatedInstance.ID, greenColor, currentProfile, resetColor)
+				fmt.Println("\n-----------------------------------------------------------------------------------------------")
+				fmt.Println(retryMsg)
+				fmt.Println("-----------------------------------------------------------------------------------------------")
+				fmt.Println("\nStarting SSM session...")
+
+				retryCommand := exec.Command("aws", retryArgs...)
+				retryCommand.Stdout = os.Stdout
+				retryCommand.Stderr = os.Stderr
+				retryCommand.Stdin = os.Stdin
+
+				if retryErr := retryCommand.Run(); retryErr != nil {
+					return retryErr
+				}
+				return nil
+			}
+
+			return nil
+		}
+
 		return err
 	}
 

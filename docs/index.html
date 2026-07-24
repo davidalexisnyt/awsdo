@@ -162,7 +162,7 @@
           </li>
           <li>
             <code>bastions</code> - Manage bastion hosts (list, add, update,
-            rename, remove). Also supports Linux-style commands:
+            set, rename, remove). Also supports Linux-style commands:
             <code>ls bastions</code>, <code>add bastion</code>,
             <code>update bastion</code>, <code>rename bastion</code>,
             <code>mv bastion</code>, <code>rm bastion</code>
@@ -670,9 +670,21 @@ aws ssm --profile dev start-session --target i-0c15ff251abee847f</code></pre>
           searches the default profile first, then all profiles if not found.
         </p>
 
+        <h4>Automatic Instance Refresh</h4>
+
         <p>
-          Again, the theme with <code>awsdo</code> is to remember the context of
-          what we were doing so it can save us time and effort.
+          If the target EC2 instance is no longer reachable — for example
+          because a deployment replaced it with a new instance — the AWS CLI
+          returns a <code>TargetNotConnected</code> error. When this happens,
+          <code>awsdo</code> detects the error and prompts you:
+        </p>
+
+        <pre><code>Instance 'myinstance' is no longer connected. Refresh its configuration? [y/n]:</code></pre>
+
+        <p>
+          Press <code>y</code> to run the interactive update flow, select the
+          new EC2 instance from the results, and have the session retried
+          automatically. Press <code>n</code> to exit without making changes.
         </p>
 
         <h3>Database Bastions</h3>
@@ -908,7 +920,7 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
         <p><strong>Updating an Existing Bastion</strong></p>
 
         <p>
-          To update an existing bastion configuration, use the
+          To update an existing bastion's EC2 instance from AWS, use the
           <code>bastions update</code> command:
         </p>
 
@@ -928,13 +940,58 @@ awsdo bastions update &lt;bastion-name&gt; --filter &lt;filter&gt;</code></pre>
         <pre><code class="language-shell">awsdo bastions update</code></pre>
 
         <p>
-          If you omit <code>-p</code>, the profile is resolved from configuration
-          when the bastion name is unique across profiles. The filter used when
-          adding or last updating is reused unless you pass
-          <code>--filter</code> / <code>-f</code>. The command then guides you
-          through the same interactive process as adding a new bastion. The
-          bastion's ID and profile association are preserved during updates.
+          You can also use the Linux-style command pattern:
         </p>
+
+        <pre><code class="language-shell">awsdo update bastion &lt;bastion-name&gt;</code></pre>
+
+        <p>
+          When set-style flags (<code>--host</code>, <code>--port</code>,
+          <code>--local-port</code>) are passed to <code>update bastion</code>,
+          it behaves like <code>bastions set</code> — directly updating the
+          stored fields without querying AWS:
+        </p>
+
+        <pre><code class="language-shell">awsdo update bastion &lt;bastion-name&gt; --port 5433
+awsdo update bastion &lt;bastion-name&gt; --host newdb.internal.com --port 5433
+awsdo update bastion &lt;bastion-name&gt; --local-port 7010</code></pre>
+
+        <p>
+          The <code>update</code> command focuses on refreshing the EC2 bastion
+          instance from AWS. The existing host, port, and local port are
+          preserved unless a matching RDS database is found and selected (in
+          which case the host and port are taken from it). If only one RDS
+          database or EC2 instance matches the filter, it is selected
+          automatically without prompting.
+        </p>
+
+        <p><strong>Setting Individual Bastion Fields</strong></p>
+
+        <p>
+          To change specific stored values of a bastion without querying AWS,
+          use the <code>bastions set</code> command:
+        </p>
+
+        <pre><code class="language-shell">awsdo bastions set &lt;bastion-name&gt; --port 5433
+awsdo bastions set &lt;bastion-name&gt; --host newdb.internal.com
+awsdo bastions set &lt;bastion-name&gt; --host newdb.internal.com --port 5433
+awsdo bastions set &lt;bastion-name&gt; --local-port 7010
+awsdo bastions set &lt;bastion-name&gt; --filter prod-bastion
+awsdo bastions set &lt;bastion-name&gt; -p dev --port 5432</code></pre>
+
+        <p>
+          Only the fields specified via flags are changed; everything else is
+          preserved. At least one flag must be provided. Flags and the bastion
+          name can appear in any order.
+        </p>
+
+        <p>Available flags for <code>bastions set</code>:</p>
+        <ul>
+          <li><code>--host</code> — remote database host</li>
+          <li><code>--port</code> — remote database port</li>
+          <li><code>--local-port</code> — local tunnel port</li>
+          <li><code>--filter</code>, <code>-f</code> — EC2 Name tag filter used by <code>update</code></li>
+        </ul>
 
         <p><strong>Renaming a Bastion</strong></p>
 
@@ -997,6 +1054,17 @@ awsdo mv bastion &lt;old-name&gt; &lt;new-name&gt;</code></pre>
         <h4>Starting a Bastion Session</h4>
 
         <p>Once configured, starting a bastion session is simple:</p>
+
+        <blockquote>
+          <p>
+            <strong>Tip:</strong> If the bastion EC2 instance is no longer
+            reachable due to a deployment replacing it,
+            <code>awsdo</code> detects the <code>TargetNotConnected</code>
+            error and prompts you to refresh the bastion configuration.
+            Press <code>y</code> to run the interactive update flow and retry
+            the tunnel automatically, or <code>n</code> to exit.
+          </p>
+        </blockquote>
 
         <pre><code class="language-shell">awsdo bastion -p &lt;profile&gt; &lt;bastion name&gt;</code></pre>
 
@@ -1106,7 +1174,10 @@ awsdo mv bastion &lt;old-name&gt; &lt;new-name&gt;</code></pre>
               </li>
               <li>
                 <code>update bastion</code> - Update a configured bastion (same
-                as <code>bastions update</code>)
+                as <code>bastions update</code>); also supports set-style flags
+                (<code>--host</code>, <code>--port</code>, <code>--local-port</code>)
+                to directly set fields without querying AWS (same as
+                <code>bastions set</code>)
               </li>
               <li>
                 <code>add profile &lt;name&gt;</code> - Add new AWS SSO profile
