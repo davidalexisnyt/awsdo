@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -57,9 +56,10 @@ func findInstances(args []string, config *Configuration) error {
 		filter = *filterShort
 	} else {
 		// Prompt user for filter text
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter filter text: ")
-		filterInput, _ := reader.ReadString('\n')
+		filterInput, err := askForLine("Enter filter text: ")
+		if err != nil {
+			return err
+		}
 		filter = strings.TrimSpace(filterInput)
 
 		if filter == "" {
@@ -610,8 +610,6 @@ func addInstance(args []string, config *Configuration) error {
 		profileInfo.Instances = make(map[string]Instance)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	// Get filter text
 	var filter string
 	if *filterFlag != "" {
@@ -620,8 +618,10 @@ func addInstance(args []string, config *Configuration) error {
 		filter = *filterShort
 	} else {
 		// Prompt user for filter text
-		fmt.Print("Enter filter text: ")
-		filterInput, _ := reader.ReadString('\n')
+		filterInput, err := askForLine("Enter filter text: ")
+		if err != nil {
+			return err
+		}
 		filter = strings.TrimSpace(filterInput)
 		if filter == "" {
 			return fmt.Errorf("filter text cannot be empty")
@@ -833,8 +833,10 @@ func addInstance(args []string, config *Configuration) error {
 		strings.Repeat("─", colPublicIPWidth),
 		strings.Repeat("─", colLaunchTimeWidth))
 
-	fmt.Print("\nSelect instance number: ")
-	instSelection, _ := reader.ReadString('\n')
+	instSelection, err := askForLine("\nSelect instance number: ")
+	if err != nil {
+		return err
+	}
 	instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
 
 	if err != nil || instIndex < 1 || instIndex > len(instances) {
@@ -850,8 +852,10 @@ func addInstance(args []string, config *Configuration) error {
 	} else if *instanceNameShort != "" {
 		targetInstanceName = *instanceNameShort
 	} else {
-		fmt.Print("\nEnter instance name: ")
-		nameInput, _ := reader.ReadString('\n')
+		nameInput, err := askForLine("\nEnter instance name: ")
+		if err != nil {
+			return err
+		}
 		targetInstanceName = strings.TrimSpace(nameInput)
 
 		if targetInstanceName == "" {
@@ -913,8 +917,6 @@ func updateInstance(args []string, config *Configuration) error {
 		return err
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	var targetInstanceName string
 	switch {
 	case len(positionals) > 1:
@@ -922,8 +924,10 @@ func updateInstance(args []string, config *Configuration) error {
 	case len(positionals) == 1:
 		targetInstanceName = positionals[0]
 	default:
-		fmt.Print("Enter instance name to update: ")
-		nameInput, _ := reader.ReadString('\n')
+		nameInput, err := askForLine("Enter instance name to update: ")
+		if err != nil {
+			return err
+		}
 		targetInstanceName = strings.TrimSpace(nameInput)
 		if targetInstanceName == "" {
 			return fmt.Errorf("instance name is required")
@@ -995,8 +999,10 @@ func updateInstance(args []string, config *Configuration) error {
 	} else if existingInstance.Filter != "" {
 		filter = existingInstance.Filter
 	} else {
-		fmt.Print("Enter instance filter string: ")
-		filterInput, _ := reader.ReadString('\n')
+		filterInput, err := askForLine("Enter instance filter string: ")
+		if err != nil {
+			return err
+		}
 		filter = strings.TrimSpace(filterInput)
 		if filter == "" {
 			return fmt.Errorf("filter text cannot be empty")
@@ -1213,8 +1219,10 @@ func updateInstance(args []string, config *Configuration) error {
 		selectedInstance = instances[0]
 		fmt.Printf("\nAutomatically selected instance '%s' (ID: %s) since it's the only result.\n", selectedInstance.Name, selectedInstance.Instance)
 	} else {
-		fmt.Print("\nSelect instance number: ")
-		instSelection, _ := reader.ReadString('\n')
+		instSelection, err := askForLine("\nSelect instance number: ")
+		if err != nil {
+			return err
+		}
 		instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
 
 		if err != nil || instIndex < 1 || instIndex > len(instances) {
@@ -1272,8 +1280,6 @@ func removeInstance(args []string, config *Configuration) error {
 		return fmt.Errorf("no instances configured for profile '%s'", currentProfile)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	// Get instance name
 	var targetInstanceName string
 
@@ -1286,8 +1292,10 @@ func removeInstance(args []string, config *Configuration) error {
 		targetInstanceName = flagSet.Arg(0)
 	default:
 		// Prompt for instance name
-		fmt.Print("Enter instance name to remove: ")
-		nameInput, _ := reader.ReadString('\n')
+		nameInput, err := askForLine("Enter instance name to remove: ")
+		if err != nil {
+			return err
+		}
 		targetInstanceName = strings.TrimSpace(nameInput)
 
 		if targetInstanceName == "" {
@@ -1345,8 +1353,6 @@ func renameInstance(args []string, config *Configuration) error {
 		return nil
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	positionals := flagSet.Args()
 	if len(positionals) > 2 {
 		return fmt.Errorf("too many arguments: expected <old name> <new name>")
@@ -1357,8 +1363,10 @@ func renameInstance(args []string, config *Configuration) error {
 	if len(positionals) >= 1 {
 		oldName = positionals[0]
 	} else {
-		fmt.Print("Enter current instance name: ")
-		input, _ := reader.ReadString('\n')
+		input, err := askForLine("Enter current instance name: ")
+		if err != nil {
+			return err
+		}
 		oldName = strings.TrimSpace(input)
 		if oldName == "" {
 			return fmt.Errorf("current instance name is required")
@@ -1368,8 +1376,10 @@ func renameInstance(args []string, config *Configuration) error {
 	if len(positionals) == 2 {
 		newName = positionals[1]
 	} else {
-		fmt.Print("Enter new instance name: ")
-		input, _ := reader.ReadString('\n')
+		input, err := askForLine("Enter new instance name: ")
+		if err != nil {
+			return err
+		}
 		newName = strings.TrimSpace(input)
 		if newName == "" {
 			return fmt.Errorf("new instance name is required")
@@ -1519,9 +1529,11 @@ func promptChooseAmongInstanceMatches(matches []instanceByNameMatch) (instanceBy
 		fmt.Printf("  %d. profile=%s  id=%s  host=%s\n", i+1, m.ProfileKey, m.Instance.ID, m.Instance.Host)
 	}
 
-	fmt.Print("Select number: ")
-	reader := bufio.NewReader(os.Stdin)
-	line, _ := reader.ReadString('\n')
+	line, err := askForLine("Select number: ")
+	if err != nil {
+		return instanceByNameMatch{}, err
+	}
+
 	idx, err := strconv.Atoi(strings.TrimSpace(line))
 	if err != nil || idx < 1 || idx > len(matches) {
 		return instanceByNameMatch{}, fmt.Errorf("invalid selection")

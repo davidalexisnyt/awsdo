@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -267,9 +266,11 @@ func promptChooseAmongBastionMatches(matches []bastionByNameMatch) (bastionByNam
 		fmt.Printf("  %d. profile=%s  instance=%s  host=%s\n", i+1, m.ProfileKey, m.Bastion.Instance, m.Bastion.Host)
 	}
 
-	fmt.Print("Select number: ")
-	reader := bufio.NewReader(os.Stdin)
-	line, _ := reader.ReadString('\n')
+	line, err := askForLine("Select number: ")
+	if err != nil {
+		return bastionByNameMatch{}, err
+	}
+
 	idx, err := strconv.Atoi(strings.TrimSpace(line))
 	if err != nil || idx < 1 || idx > len(matches) {
 		return bastionByNameMatch{}, fmt.Errorf("invalid selection")
@@ -314,16 +315,16 @@ func addBastion(args []string, config *Configuration) error {
 		profileInfo.Bastions = make(map[string]Bastion)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	var filter string
 	if *filterFlag != "" {
 		filter = *filterFlag
 	} else if *filterShort != "" {
 		filter = *filterShort
 	} else {
-		fmt.Print("Enter filter text for bastion EC2 Name tag (substring match): ")
-		filterInput, _ := reader.ReadString('\n')
+		filterInput, err := askForLine("Enter filter text for bastion EC2 Name tag (substring match): ")
+		if err != nil {
+			return err
+		}
 		filter = strings.TrimSpace(filterInput)
 		if filter == "" {
 			return fmt.Errorf("filter text cannot be empty")
@@ -350,8 +351,10 @@ func addBastion(args []string, config *Configuration) error {
 	var selectedDB *RDSDatabase
 
 	if len(databases) > 0 {
-		fmt.Print("\nSelect database number (or 0 to skip): ")
-		dbSelection, _ := reader.ReadString('\n')
+		dbSelection, err := askForLine("\nSelect database number (or 0 to skip): ")
+		if err != nil {
+			return err
+		}
 		dbIndex, err := strconv.Atoi(strings.TrimSpace(dbSelection))
 
 		if err != nil || dbIndex < 0 || dbIndex > len(databases) {
@@ -382,8 +385,10 @@ func addBastion(args []string, config *Configuration) error {
 		fmt.Printf("  %d. %s (%s)\n", i+1, inst.Name, inst.Instance)
 	}
 
-	fmt.Print("\nSelect bastion instance number: ")
-	instSelection, _ := reader.ReadString('\n')
+	instSelection, err := askForLine("\nSelect bastion instance number: ")
+	if err != nil {
+		return err
+	}
 	instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
 
 	if err != nil || instIndex < 1 || instIndex > len(bastionInstances) {
@@ -393,8 +398,10 @@ func addBastion(args []string, config *Configuration) error {
 	selectedBastionInstance := bastionInstances[instIndex-1]
 
 	// Get bastion name
-	fmt.Print("\nEnter bastion name: ")
-	bastionName, _ := reader.ReadString('\n')
+	bastionName, err := askForLine("\nEnter bastion name: ")
+	if err != nil {
+		return err
+	}
 	bastionName = strings.TrimSpace(bastionName)
 
 	if bastionName == "" {
@@ -426,12 +433,16 @@ func addBastion(args []string, config *Configuration) error {
 		newBastion.Port = selectedDB.Port
 	} else {
 		// Prompt for host and port
-		fmt.Print("Enter remote host: ")
-		host, _ := reader.ReadString('\n')
+		host, err := askForLine("Enter remote host: ")
+		if err != nil {
+			return err
+		}
 		newBastion.Host = strings.TrimSpace(host)
 
-		fmt.Print("Enter remote port: ")
-		portStr, _ := reader.ReadString('\n')
+		portStr, err := askForLine("Enter remote port: ")
+		if err != nil {
+			return err
+		}
 
 		port, err := strconv.Atoi(strings.TrimSpace(portStr))
 		if err != nil {
@@ -448,8 +459,10 @@ func addBastion(args []string, config *Configuration) error {
 	}
 
 	fmt.Printf("Using local port: %d\n", localPort)
-	fmt.Print("Enter local port (or press Enter to use suggested): ")
-	localPortStr, _ := reader.ReadString('\n')
+	localPortStr, err := askForLine("Enter local port (or press Enter to use suggested): ")
+	if err != nil {
+		return err
+	}
 	localPortStr = strings.TrimSpace(localPortStr)
 
 	if localPortStr != "" {
@@ -504,8 +517,6 @@ func updateBastion(args []string, config *Configuration) error {
 		return err
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	var targetBastionName string
 	switch {
 	case len(positionals) > 1:
@@ -513,8 +524,10 @@ func updateBastion(args []string, config *Configuration) error {
 	case len(positionals) == 1:
 		targetBastionName = positionals[0]
 	default:
-		fmt.Print("Enter bastion name to update: ")
-		nameInput, _ := reader.ReadString('\n')
+		nameInput, err := askForLine("Enter bastion name to update: ")
+		if err != nil {
+			return err
+		}
 		targetBastionName = strings.TrimSpace(nameInput)
 		if targetBastionName == "" {
 			return fmt.Errorf("bastion name is required")
@@ -596,8 +609,10 @@ func updateBastion(args []string, config *Configuration) error {
 	} else if existingBastion.Filter != "" {
 		filter = existingBastion.Filter
 	} else {
-		fmt.Print("Enter bastion EC2 Name-tag filter substring [bastion]: ")
-		filterInput, _ := reader.ReadString('\n')
+		filterInput, err := askForLine("Enter bastion EC2 Name-tag filter substring [bastion]: ")
+		if err != nil {
+			return err
+		}
 		filter = strings.TrimSpace(filterInput)
 		if filter == "" {
 			filter = "bastion"
@@ -625,8 +640,10 @@ func updateBastion(args []string, config *Configuration) error {
 		selectedDB = &databases[0]
 		fmt.Printf("\nAutomatically selected database '%s' (%s) since it's the only result.\n", selectedDB.DBInstanceIdentifier, selectedDB.Engine)
 	} else if len(databases) > 1 {
-		fmt.Print("\nSelect database number (or 0 to skip): ")
-		dbSelection, _ := reader.ReadString('\n')
+		dbSelection, err := askForLine("\nSelect database number (or 0 to skip): ")
+		if err != nil {
+			return err
+		}
 
 		dbIndex, err := strconv.Atoi(strings.TrimSpace(dbSelection))
 		if err != nil || dbIndex < 0 || dbIndex > len(databases) {
@@ -660,8 +677,10 @@ func updateBastion(args []string, config *Configuration) error {
 			fmt.Printf("  %d. %s (%s)\n", i+1, inst.Name, inst.Instance)
 		}
 
-		fmt.Print("\nSelect bastion instance number: ")
-		instSelection, _ := reader.ReadString('\n')
+		instSelection, err := askForLine("\nSelect bastion instance number: ")
+		if err != nil {
+			return err
+		}
 
 		instIndex, err := strconv.Atoi(strings.TrimSpace(instSelection))
 		if err != nil || instIndex < 1 || instIndex > len(bastionInstances) {
@@ -784,9 +803,10 @@ func setBastion(args []string, config *Configuration) error {
 	if len(positionals) > 0 {
 		targetBastionName = positionals[0]
 	} else {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter bastion name: ")
-		input, _ := reader.ReadString('\n')
+		input, err := askForLine("Enter bastion name: ")
+		if err != nil {
+			return err
+		}
 		targetBastionName = strings.TrimSpace(input)
 		if targetBastionName == "" {
 			return fmt.Errorf("bastion name is required")
@@ -1201,8 +1221,6 @@ func removeBastion(args []string, config *Configuration) error {
 		return fmt.Errorf("no bastions configured for profile '%s'", currentProfile)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	// Get bastion name
 	var targetBastionName string
 
@@ -1215,8 +1233,10 @@ func removeBastion(args []string, config *Configuration) error {
 		targetBastionName = flagSet.Arg(0)
 	default:
 		// Prompt for bastion name
-		fmt.Print("Enter bastion name to remove: ")
-		nameInput, _ := reader.ReadString('\n')
+		nameInput, err := askForLine("Enter bastion name to remove: ")
+		if err != nil {
+			return err
+		}
 		targetBastionName = strings.TrimSpace(nameInput)
 
 		if targetBastionName == "" {
@@ -1282,8 +1302,6 @@ func renameBastion(args []string, config *Configuration) error {
 		return nil
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	positionals := flagSet.Args()
 	if len(positionals) > 2 {
 		return fmt.Errorf("too many arguments: expected <old name> <new name>")
@@ -1294,8 +1312,10 @@ func renameBastion(args []string, config *Configuration) error {
 	if len(positionals) >= 1 {
 		oldName = positionals[0]
 	} else {
-		fmt.Print("Enter current bastion name: ")
-		input, _ := reader.ReadString('\n')
+		input, err := askForLine("Enter current bastion name: ")
+		if err != nil {
+			return err
+		}
 		oldName = strings.TrimSpace(input)
 		if oldName == "" {
 			return fmt.Errorf("current bastion name is required")
@@ -1305,8 +1325,10 @@ func renameBastion(args []string, config *Configuration) error {
 	if len(positionals) == 2 {
 		newName = positionals[1]
 	} else {
-		fmt.Print("Enter new bastion name: ")
-		input, _ := reader.ReadString('\n')
+		input, err := askForLine("Enter new bastion name: ")
+		if err != nil {
+			return err
+		}
 		newName = strings.TrimSpace(input)
 		if newName == "" {
 			return fmt.Errorf("new bastion name is required")

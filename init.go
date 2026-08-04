@@ -231,9 +231,9 @@ func installAWSCLIWindows() error {
 	fmt.Println("  Visit: https://awscli.amazonaws.com/AWSCLIV2.msi")
 	fmt.Println("  Download and run the installer")
 	fmt.Println()
-	fmt.Print("Press Enter after you have installed AWS CLI...")
-
-	readUserInput()
+	if err := waitForEnter("Press Enter after you have installed AWS CLI..."); err != nil {
+		return err
+	}
 
 	// Verify installation
 	if !checkAWSCLI() {
@@ -275,8 +275,9 @@ func installAWSCLIMacOS() error {
 	fmt.Println("  Visit: https://awscli.amazonaws.com/AWSCLIV2.pkg")
 	fmt.Println("  Download and run the installer")
 	fmt.Println()
-	fmt.Print("Press Enter after you have installed AWS CLI...")
-	readUserInput()
+	if err := waitForEnter("Press Enter after you have installed AWS CLI..."); err != nil {
+		return err
+	}
 
 	// Verify installation
 	if !checkAWSCLI() {
@@ -342,8 +343,9 @@ func installAWSCLILinux() error {
 	fmt.Println("For other distributions, visit:")
 	fmt.Println("  https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html")
 	fmt.Println()
-	fmt.Print("Press Enter after you have installed AWS CLI...")
-	readUserInput()
+	if err := waitForEnter("Press Enter after you have installed AWS CLI..."); err != nil {
+		return err
+	}
 
 	// Verify installation
 	if !checkAWSCLI() {
@@ -478,8 +480,9 @@ func installSSMPluginMacOS() error {
 	fmt.Println("Option 2: Download and install manually")
 	fmt.Println("  Visit: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html")
 	fmt.Println()
-	fmt.Print("Press Enter after you have installed SSM Plugin...")
-	readUserInput()
+	if err := waitForEnter("Press Enter after you have installed SSM Plugin..."); err != nil {
+		return err
+	}
 
 	// Verify installation
 	if !checkSSMPlugin() {
@@ -506,8 +509,9 @@ func installSSMPluginLinux() error {
 		fmt.Printf("SSM Plugin found at %s but not in PATH.\n", pluginPath)
 		fmt.Println("Add the following to your ~/.bashrc or ~/.zshrc:")
 		fmt.Printf("  export PATH=\"$PATH:%s\"\n", filepath.Join(pluginDir, "bin"))
-		fmt.Print("Press Enter after you have updated your PATH...")
-		readUserInput()
+		if err := waitForEnter("Press Enter after you have updated your PATH..."); err != nil {
+			return err
+		}
 		if checkSSMPlugin() {
 			return nil
 		}
@@ -569,8 +573,9 @@ func installSSMPluginLinux() error {
 		fmt.Println()
 		fmt.Println("Visit: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html")
 		fmt.Println()
-		fmt.Print("Press Enter after you have installed SSM Plugin...")
-		readUserInput()
+		if err := waitForEnter("Press Enter after you have installed SSM Plugin..."); err != nil {
+			return err
+		}
 		if !checkSSMPlugin() {
 			return fmt.Errorf("the SSM Plugin not found. Please ensure it is installed and accessible")
 		}
@@ -584,8 +589,9 @@ func installSSMPluginLinux() error {
 		fmt.Println()
 		fmt.Println("Visit: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html")
 		fmt.Println()
-		fmt.Print("Press Enter after you have installed SSM Plugin...")
-		readUserInput()
+		if err := waitForEnter("Press Enter after you have installed SSM Plugin..."); err != nil {
+			return err
+		}
 		if !checkSSMPlugin() {
 			return fmt.Errorf("the SSM Plugin not found. Please ensure it is installed and accessible")
 		}
@@ -636,8 +642,6 @@ func setupProfile(config *Configuration) error {
 // addProfileWithSSOSetup walks the user through setting up an AWS SSO profile.
 // If profileName is empty, prompts for it (default "default"). If non-empty, uses it directly.
 func addProfileWithSSOSetup(config *Configuration, profileName string) error {
-	reader := bufio.NewReader(os.Stdin)
-
 	if profileName != "" {
 		fmt.Printf("Adding AWS SSO profile '%s'.\n", profileName)
 	} else {
@@ -652,8 +656,10 @@ func addProfileWithSSOSetup(config *Configuration, profileName string) error {
 
 	// Get profile name if not provided
 	if profileName == "" {
-		fmt.Print("Profile name [default]: ")
-		name, _ := reader.ReadString('\n')
+		name, err := askForLine("Profile name [default]: ")
+		if err != nil {
+			return err
+		}
 		profileName = strings.TrimSpace(name)
 		if profileName == "" {
 			profileName = "default"
@@ -661,40 +667,50 @@ func addProfileWithSSOSetup(config *Configuration, profileName string) error {
 	}
 
 	// Get SSO start URL
-	fmt.Print("SSO start URL: ")
-	ssoStartURL, _ := reader.ReadString('\n')
+	ssoStartURL, err := askForLine("SSO start URL: ")
+	if err != nil {
+		return err
+	}
 	ssoStartURL = strings.TrimSpace(ssoStartURL)
 	if ssoStartURL == "" {
 		return fmt.Errorf("SSO start URL is required")
 	}
 
 	// Get SSO region
-	fmt.Print("SSO region [us-east-1]: ")
-	ssoRegion, _ := reader.ReadString('\n')
+	ssoRegion, err := askForLine("SSO region [us-east-1]: ")
+	if err != nil {
+		return err
+	}
 	ssoRegion = strings.TrimSpace(ssoRegion)
 	if ssoRegion == "" {
 		ssoRegion = "us-east-1"
 	}
 
 	// Get account ID
-	fmt.Print("Account ID: ")
-	accountID, _ := reader.ReadString('\n')
+	accountID, err := askForLine("Account ID: ")
+	if err != nil {
+		return err
+	}
 	accountID = strings.TrimSpace(accountID)
 	if accountID == "" {
 		return fmt.Errorf("Account ID is required")
 	}
 
 	// Get role name
-	fmt.Print("Role name: ")
-	roleName, _ := reader.ReadString('\n')
+	roleName, err := askForLine("Role name: ")
+	if err != nil {
+		return err
+	}
 	roleName = strings.TrimSpace(roleName)
 	if roleName == "" {
 		return fmt.Errorf("Role name is required")
 	}
 
 	// Get default region (optional)
-	fmt.Print("Default region [us-east-1]: ")
-	defaultRegion, _ := reader.ReadString('\n')
+	defaultRegion, err := askForLine("Default region [us-east-1]: ")
+	if err != nil {
+		return err
+	}
 	defaultRegion = strings.TrimSpace(defaultRegion)
 	if defaultRegion == "" {
 		defaultRegion = "us-east-1"
@@ -744,13 +760,6 @@ func addProfileWithSSOSetup(config *Configuration, profileName string) error {
 	fmt.Println("✓ Profile test successful!")
 
 	return nil
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// readUserInput reads a line from stdin, handling both Windows and Unix line endings
-func readUserInput() {
-	reader := bufio.NewReader(os.Stdin)
-	reader.ReadString('\n')
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

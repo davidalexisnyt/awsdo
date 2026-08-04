@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
 	"unicode"
 
@@ -17,6 +18,7 @@ const (
 	resetColor  = "\033[0m"
 	clearScreen = "\033[2J\033[H" // Clear screen and move cursor to home
 	prompt      = "awsdo>> "
+	ctrlC       = 0x03 // Ctrl-C character
 	ctrlL       = '\f' // Form feed character (Ctrl-L)
 	ctrlD       = 0x04 // Ctrl-D character
 	backspace   = '\b' // Backspace character
@@ -26,19 +28,34 @@ const (
 
 // lineEditor handles line editing with cursor movement and history
 type lineEditor struct {
-	line      []rune   // Current line as runes
-	cursorPos int      // Cursor position in runes
-	history   []string // Command history
-	histIndex int      // Current history index (-1 = not browsing history)
+	line       []rune   // Current line as runes
+	cursorPos  int      // Cursor position in runes
+	history    []string // Command history
+	histIndex  int      // Current history index (-1 = not browsing history)
+	promptText string   // Text reprinted at column 1 when the line is redrawn
 }
 
-// newLineEditor creates a new line editor
+// newLineEditor creates a new line editor for the REPL prompt
 func newLineEditor() *lineEditor {
 	return &lineEditor{
-		line:      make([]rune, 0),
-		cursorPos: 0,
-		history:   make([]string, 0),
-		histIndex: -1,
+		line:       make([]rune, 0),
+		cursorPos:  0,
+		history:    make([]string, 0),
+		histIndex:  -1,
+		promptText: greenColor + prompt + resetColor,
+	}
+}
+
+// newQuestionEditor creates a line editor for a one-off question asked by a
+// command. It carries no history, so the arrow keys cannot pull REPL commands
+// into an answer.
+func newQuestionEditor(promptText string) *lineEditor {
+	return &lineEditor{
+		line:       make([]rune, 0),
+		cursorPos:  0,
+		history:    make([]string, 0),
+		histIndex:  -1,
+		promptText: promptText,
 	}
 }
 
@@ -71,7 +88,7 @@ func (le *lineEditor) redrawLine() {
 	fmt.Print("\033[K")
 
 	// Print prompt
-	fmt.Print(greenColor + prompt + resetColor)
+	fmt.Print(le.promptText)
 
 	// Print line content
 	fmt.Print(string(le.line))
@@ -272,6 +289,12 @@ func readLineWithEditing(reader *bufio.Reader, editor *lineEditor) (string, erro
 				return "", io.EOF
 			}
 
+			// Raw mode leaves Ctrl-C to us instead of raising SIGINT, so it
+			// abandons the line being edited rather than killing the process.
+			if char == ctrlC {
+				return "", errCanceled
+			}
+
 			// Check for Ctrl-L (form feed)
 			if char == ctrlL {
 				// Clear screen and discard any partial input
@@ -419,6 +442,23 @@ func startREPL(configFile string, config *Configuration) {
 		}
 	}
 
+	// Commands run with the terminal back in cooked mode, where Ctrl-C raises
+	// SIGINT. Absorb those signals for the life of the session so that
+	// interrupting a command — or a subprocess it started — returns to the
+	// prompt instead of terminating the REPL.
+	interrupts := make(chan os.Signal, 1)
+	setupSignalHandler(interrupts)
+
+	defer func() {
+		signal.Stop(interrupts)
+		close(interrupts)
+	}()
+
+	go func() {
+		for range interrupts {
+		}
+	}()
+
 	reader := bufio.NewReader(os.Stdin)
 	editor := newLineEditor()
 
@@ -440,6 +480,12 @@ func startREPL(configFile string, config *Configuration) {
 		}
 
 		if err != nil {
+			// Ctrl-C abandons the line being typed and starts a fresh prompt.
+			if wasCanceled(err) {
+				fmt.Print("\033[K\r\n")
+				continue
+			}
+
 			// Handle EOF
 			if err == io.EOF {
 				if isTerminal && originalState != nil {
@@ -525,7 +571,7 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		login(args, config)
 	case "get-credentials", "credentials":
 		if err := getCredentials(args, config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 		}
 	case "instances":
 		if len(args) < 1 {
@@ -542,17 +588,19 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 			listInstances(args[1:], config)
 		case "add":
 			if err := addInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "update":
 			if err := updateInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "remove", "rm":
-			removeInstance(args[1:], config)
+			if err := removeInstance(args[1:], config); err != nil {
+				reportCommandResult(err)
+			}
 		case "rename", "mv":
 			if err := renameInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid instances subcommand: %s\n", subcommand)
@@ -560,11 +608,11 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		}
 	case "terminal":
 		if err := startSSMSession(args, config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 		}
 	case "bastion":
 		if err := startBastionTunnel(args, config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 		}
 	case "bastions":
 		if len(args) < 1 {
@@ -580,21 +628,23 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 			listBastions(args[1:], config)
 		case "add":
 			if err := addBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "update", "up":
 			if err := updateBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "remove", "rm":
-			removeBastion(args[1:], config)
+			if err := removeBastion(args[1:], config); err != nil {
+				reportCommandResult(err)
+			}
 		case "rename", "mv":
 			if err := renameBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "set":
 			if err := setBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid bastions subcommand: %s\n", subcommand)
@@ -611,13 +661,13 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		switch subcommand {
 		case "add":
 			if err := addProfile(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "list", "ls":
 			listProfiles(args[1:], config)
 		case "remove", "rm":
 			if err := removeProfile(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid profiles subcommand: %s\n", subcommand)
@@ -658,15 +708,15 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		switch object {
 		case "instance", "instances":
 			if err := addInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "bastion", "bastions":
 			if err := addBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "profile", "profiles":
 			if err := addProfile(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
@@ -683,7 +733,7 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		switch object {
 		case "instance", "instances":
 			if err := updateInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "bastion", "bastions":
 			bastionArgs := args[1:]
@@ -698,11 +748,11 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 			}
 			if isSet {
 				if err := setBastion(bastionArgs, config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 				}
 			} else {
 				if err := updateBastion(bastionArgs, config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 				}
 			}
 		default:
@@ -719,12 +769,16 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 
 		switch object {
 		case "instance", "instances":
-			removeInstance(args[1:], config)
+			if err := removeInstance(args[1:], config); err != nil {
+				reportCommandResult(err)
+			}
 		case "bastion", "bastions":
-			removeBastion(args[1:], config)
+			if err := removeBastion(args[1:], config); err != nil {
+				reportCommandResult(err)
+			}
 		case "profile", "profiles":
 			if err := removeProfile(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)
@@ -741,11 +795,11 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 		switch object {
 		case "instance", "instances":
 			if err := renameInstance(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		case "bastion", "bastions":
 			if err := renameBastion(args[1:], config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 			}
 		default:
 			fmt.Printf("Invalid object: %s\n", object)

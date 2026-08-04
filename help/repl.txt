@@ -13,6 +13,8 @@ FEATURES:
     - Command shortcuts for faster typing
     - Automatic configuration saving after each command
     - Screen clearing with Ctrl-L
+    - Cancel with Ctrl-C: discards the line being typed, or stops a running
+      command and returns to the prompt without leaving the REPL
     - Multiple exit options
     - Built-in help system
 
@@ -43,7 +45,9 @@ EXIT COMMANDS:
 
 KEYBOARD SHORTCUTS:
     Ctrl-L      Clear the screen and return to prompt
-    Ctrl-D      Exit the REPL
+    Ctrl-C      Cancel the line being typed, or the running command, and
+                return to the prompt
+    Ctrl-D      Exit the REPL (at a command's question, cancels the command)
 
 EXAMPLES:
     Start REPL:

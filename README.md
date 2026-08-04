@@ -21,6 +21,7 @@ Thus, the `awsdo` tool was born. The aim is to have the tool minimize the amount
   - Remove bastion configurations
   - Port forwarding through bastion hosts
   - Auto-assignment of local ports
+  - Keepalive pings and automatic reconnection to keep tunnels up through idle timeouts and network drops
 - **Help System**: Built-in help for all commands
 - **Auto-Configuration**: Automatically saves your most-used settings while you use it
 - **Cross-Platform**: Single codebase works on Windows, Linux, and macOS
@@ -59,7 +60,7 @@ The tool provides the following commands:
 - `login` - Log in to AWS SSO
 - `instances` - List EC2 instances matching a filter
 - `terminal` - Start an SSM terminal session to an EC2 instance
-- `bastion` - Start a port forwarding session through a bastion host
+- `bastion` - Start a port forwarding session through a bastion host, kept alive with keepalive pings and automatic reconnection
 - `bastions` - Manage bastion hosts (list, add, update, remove)
 - `help` - Show help information (use `awsdo help <command>` for detailed help)
 - `docs` - Displays the application documentation (contained in README.md) to the terminal. The markdown is converted and rendered to look beautiful in the terminal.
@@ -348,7 +349,13 @@ awsdo bastion my-prod-db --keepalive off     # no pings
 awsdo bastion my-prod-db --reconnect off     # exit when the session ends
 ```
 
-Or saved per bastion:
+The banner printed when the tunnel starts shows which settings are in effect:
+
+```text
+Keepalive: every 30s    Auto-reconnect: on
+```
+
+Or saved per bastion, so every session uses them:
 
 ```shell
 awsdo bastions set my-prod-db --keepalive 45
@@ -442,6 +449,7 @@ The configuration file (`awsdo_config.json`) is stored in the same directory as 
   - Default EC2 instance ID
   - Multiple named bastions
   - Default bastion name
+  - Per-bastion tunnel keepalive interval (`keepAliveSeconds`, omitted for the 60 second default, `-1` to disable) and auto-reconnect opt-out (`noReconnect`)
 
 Example configuration:
 
@@ -460,7 +468,9 @@ Example configuration:
           "instance": "i-1234567890abcdef0",
           "host": "prod-db.example.com",
           "port": 5432,
-          "localPort": 7000
+          "localPort": 7000,
+          "keepAliveSeconds": 45,
+          "noReconnect": false
         }
       },
       "defaultBastion": "production-db"

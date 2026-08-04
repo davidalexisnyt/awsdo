@@ -56,6 +56,11 @@
             bastion connections to RDS databases.
           </li>
           <li>
+            <strong>Durable Tunnels</strong>: Keepalive pings and automatic
+            reconnection keep bastion tunnels up through idle timeouts and
+            network drops
+          </li>
+          <li>
             <strong>Interactive REPL</strong>: Work in an interactive shell with
             command shortcuts and convenient features
           </li>
@@ -158,7 +163,8 @@
           </li>
           <li>
             <code>bastion</code> - Start a port forwarding session through a
-            bastion host
+            bastion host, kept alive with keepalive pings and automatic
+            reconnection
           </li>
           <li>
             <code>bastions</code> - Manage bastion hosts (list, add, update,
@@ -977,6 +983,8 @@ awsdo bastions set &lt;bastion-name&gt; --host newdb.internal.com
 awsdo bastions set &lt;bastion-name&gt; --host newdb.internal.com --port 5433
 awsdo bastions set &lt;bastion-name&gt; --local-port 7010
 awsdo bastions set &lt;bastion-name&gt; --filter prod-bastion
+awsdo bastions set &lt;bastion-name&gt; --keepalive 45
+awsdo bastions set &lt;bastion-name&gt; --reconnect off
 awsdo bastions set &lt;bastion-name&gt; -p dev --port 5432</code></pre>
 
         <p>
@@ -991,6 +999,15 @@ awsdo bastions set &lt;bastion-name&gt; -p dev --port 5432</code></pre>
           <li><code>--port</code> — remote database port</li>
           <li><code>--local-port</code> — local tunnel port</li>
           <li><code>--filter</code>, <code>-f</code> — EC2 Name tag filter used by <code>update</code></li>
+          <li>
+            <code>--keepalive</code> — tunnel keepalive interval in seconds, or
+            <code>off</code> (see
+            <a href="#keeping-a-tunnel-alive">Keeping a Tunnel Alive</a>)
+          </li>
+          <li>
+            <code>--reconnect</code> — restart the tunnel when it drops,
+            <code>on</code> or <code>off</code>
+          </li>
         </ul>
 
         <p><strong>Renaming a Bastion</strong></p>
@@ -1116,6 +1133,69 @@ awsdo mv bastion &lt;old-name&gt; &lt;new-name&gt;</code></pre>
           way that matches our personal approach.
         </p>
 
+        <h4 id="keeping-a-tunnel-alive">Keeping a Tunnel Alive</h4>
+
+        <p>
+          A tunnel left idle does not stay up on its own. AWS ends a Session
+          Manager session after an account-wide idle timeout — 20 minutes by
+          default, and 60 minutes at most — and corporate VPNs and NAT gateways
+          often drop the underlying idle connection long before that. Neither
+          limit can be changed from the command line, so
+          <code>awsdo</code> keeps long-lived tunnels up in two ways, both
+          enabled by default:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Keepalive pings</strong>: every 60 seconds,
+            <code>awsdo</code> opens and immediately closes a connection to the
+            local tunnel port. That traffic keeps the session from ever looking
+            idle. The database may log an aborted connection for each ping.
+          </li>
+          <li>
+            <strong>Auto-reconnect</strong>: if the session ends for any other
+            reason — a network drop, a laptop going to sleep, a maximum session
+            duration cap — <code>awsdo</code> restarts it with a short backoff.
+            If the SSO session expired in the meantime, it logs in again first.
+            After five restarts in a row where the tunnel never stays up for a
+            minute, it gives up rather than spinning.
+          </li>
+        </ul>
+
+        <p>Both can be changed for a single session:</p>
+
+        <pre><code class="language-shell">awsdo bastion my-prod-db --keepalive 30
+awsdo bastion my-prod-db --keepalive off
+awsdo bastion my-prod-db --reconnect off</code></pre>
+
+        <p>
+          The banner printed when the tunnel starts shows which settings are in
+          effect:
+        </p>
+
+        <pre><code class="language-text">Keepalive: every 30s    Auto-reconnect: on</code></pre>
+
+        <p>
+          Or the settings can be saved per bastion so every session uses them:
+        </p>
+
+        <pre><code class="language-shell">awsdo bastions set my-prod-db --keepalive 45
+awsdo bastions set my-prod-db --reconnect off</code></pre>
+
+        <p>
+          Press <code>Ctrl-C</code> to stop the tunnel at any point, including
+          while it is waiting to reconnect.
+        </p>
+
+        <blockquote>
+          <p>
+            <strong>Tip:</strong> If tunnels still die faster than the keepalive
+            interval, the account's idle timeout may be set very low. Check the
+            Session Manager preferences with:
+          </p>
+          <pre><code class="language-shell">aws ssm get-document --name SSM-SessionManagerRunShell --profile &lt;profile&gt; --query Content --output text</code></pre>
+        </blockquote>
+
         <h3>Interactive REPL Mode</h3>
 
         <p>
@@ -1226,6 +1306,14 @@ awsdo mv bastion &lt;old-name&gt; &lt;new-name&gt;</code></pre>
           <li>
             <strong>Screen Clearing</strong>: Press <code>Ctrl-L</code> to clear
             the screen at any time
+          </li>
+          <li>
+            <strong>Cancelling</strong>: Press <code>Ctrl-C</code> to back out.
+            At the prompt it discards whatever is being typed; while a command
+            is running — including at a question it asked, such as the name
+            <code>bastions update</code> waits for — it stops the command and
+            returns to the prompt without leaving the REPL. Answering a question
+            with <code>Ctrl-D</code> cancels the command the same way.
           </li>
           <li>
             <strong>Help</strong>: Type <code>help</code>, <code>:help</code>,
@@ -1380,6 +1468,12 @@ awsdo help terminal
               <li>Default instance name</li>
               <li>Multiple named bastions</li>
               <li>Default bastion name</li>
+              <li>
+                Per-bastion tunnel keepalive interval
+                (<code>keepAliveSeconds</code>, omitted for the 60 second
+                default, <code>-1</code> to disable) and auto-reconnect opt-out
+                (<code>noReconnect</code>)
+              </li>
             </ul>
           </li>
         </ul>
@@ -1414,7 +1508,9 @@ awsdo help terminal
           "instance": "i-1234567890abcdef0",
           "host": "prod-db.example.com",
           "port": 5432,
-          "localPort": 7000
+          "localPort": 7000,
+          "keepAliveSeconds": 45,
+          "noReconnect": false
         }
       },
       "defaultBastion": "production-db"

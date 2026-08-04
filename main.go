@@ -51,7 +51,7 @@ func main() {
 		login(os.Args[2:], &config)
 	case "get-credentials", "credentials":
 		if err := getCredentials(os.Args[2:], &config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 			os.Exit(1)
 		}
 		return
@@ -68,19 +68,22 @@ func main() {
 				listInstances(os.Args[3:], &config)
 			case "add":
 				if err := addInstance(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			case "update":
 				if err := updateInstance(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			case "remove", "rm":
-				removeInstance(os.Args[3:], &config)
+				if err := removeInstance(os.Args[3:], &config); err != nil {
+					reportCommandResult(err)
+					os.Exit(1)
+				}
 			case "rename", "mv":
 				if err := renameInstance(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			default:
@@ -91,12 +94,12 @@ func main() {
 		}
 	case "terminal":
 		if err := startSSMSession(os.Args[2:], &config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 			os.Exit(1)
 		}
 	case "bastion":
 		if err := startBastionTunnel(os.Args[2:], &config); err != nil {
-			fmt.Println(err.Error())
+			reportCommandResult(err)
 			os.Exit(1)
 		}
 	case "bastions":
@@ -110,24 +113,27 @@ func main() {
 				listBastions(os.Args[3:], &config)
 			case "add":
 				if err := addBastion(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			case "update", "up":
 				if err := updateBastion(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			case "set":
 				if err := setBastion(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			case "remove", "rm":
-				removeBastion(os.Args[3:], &config)
+				if err := removeBastion(os.Args[3:], &config); err != nil {
+					reportCommandResult(err)
+					os.Exit(1)
+				}
 			case "rename", "mv":
 				if err := renameBastion(os.Args[3:], &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			default:
@@ -194,12 +200,12 @@ func main() {
 		switch object {
 		case "instance", "instances":
 			if err := addInstance(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 				os.Exit(1)
 			}
 		case "bastion", "bastions":
 			if err := addBastion(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 				os.Exit(1)
 			}
 		case "profile", "profiles":
@@ -220,7 +226,7 @@ func main() {
 		switch object {
 		case "instance", "instances":
 			if err := updateInstance(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 				os.Exit(1)
 			}
 		case "bastion", "bastions":
@@ -237,12 +243,12 @@ func main() {
 
 			if isSet {
 				if err := setBastion(args, &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			} else {
 				if err := updateBastion(args, &config); err != nil {
-					fmt.Println(err.Error())
+					reportCommandResult(err)
 					os.Exit(1)
 				}
 			}
@@ -259,9 +265,15 @@ func main() {
 		object := strings.ToLower(os.Args[2])
 		switch object {
 		case "instance", "instances":
-			removeInstance(os.Args[3:], &config)
+			if err := removeInstance(os.Args[3:], &config); err != nil {
+				reportCommandResult(err)
+				os.Exit(1)
+			}
 		case "bastion", "bastions":
-			removeBastion(os.Args[3:], &config)
+			if err := removeBastion(os.Args[3:], &config); err != nil {
+				reportCommandResult(err)
+				os.Exit(1)
+			}
 		case "profile", "profiles":
 			if err := removeProfile(os.Args[3:], &config); err != nil {
 				os.Exit(1)
@@ -280,12 +292,12 @@ func main() {
 		switch object {
 		case "instance", "instances":
 			if err := renameInstance(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 				os.Exit(1)
 			}
 		case "bastion", "bastions":
 			if err := renameBastion(os.Args[3:], &config); err != nil {
-				fmt.Println(err.Error())
+				reportCommandResult(err)
 				os.Exit(1)
 			}
 		default:
