@@ -4,6 +4,7 @@ USAGE:
     awsdo bastion [--profile <aws cli profile>] [--name <bastion name>]
                     [--instance <bastion instance id>] [--host <remote host>]
                     [--port <remote port>] [--local <local port>]
+                    [--keepalive <seconds|off>] [--reconnect <on|off>]
 
 DESCRIPTION:
     Creates a port forwarding tunnel through a bastion host using AWS SSM.
@@ -25,6 +26,27 @@ DESCRIPTION:
     interactively to select the new EC2 instance, and the tunnel is retried
     automatically.
 
+KEEPING THE TUNNEL ALIVE:
+    AWS ends a Session Manager session after an account-wide idle timeout
+    (20 minutes by default, 60 at most), and idle connections are often
+    dropped much sooner by VPNs and NAT gateways. Neither limit can be
+    changed from the command line, so two behaviours are enabled by default:
+
+    Keepalive  Every 60 seconds a connection to the local tunnel port is
+               opened and closed immediately, so the session never looks
+               idle. The remote service may log an aborted connection for
+               each ping. Use --keepalive to change the interval (minimum 5
+               seconds) or 'off' to disable.
+
+    Reconnect  When the session ends for any other reason (network drop,
+               sleep, a maximum session duration cap) the tunnel restarts
+               with a short backoff, logging in again if SSO credentials
+               expired. It gives up after five restarts in a row that fail
+               to stay up for a minute. Use --reconnect off to exit instead.
+
+    Ctrl-C stops the tunnel at any point, including while waiting to
+    reconnect. Save these settings per bastion with 'awsdo bastions set'.
+
 OPTIONS:
     --profile, -p         AWS CLI profile to use
     --name               Name of the configured bastion to use
@@ -32,6 +54,9 @@ OPTIONS:
     --host               Remote host to forward to (overrides configured host)
     --port               Remote port to forward (overrides configured port)
     --local              Local port to bind to (overrides configured local port)
+    --keepalive          Keepalive interval in seconds, or 'off' (default 60)
+    --reconnect          Restart the tunnel when it drops: 'on' or 'off'
+                         (default on)
 
 EXAMPLES:
     awsdo bastion
@@ -45,4 +70,10 @@ EXAMPLES:
 
     awsdo bastion -p dev --name my-db
         Uses the bastion named "my-db" from the dev profile only.
+
+    awsdo bastion my-prod-db --keepalive 30
+        Pings the tunnel every 30 seconds instead of every 60.
+
+    awsdo bastion my-prod-db --keepalive off --reconnect off
+        Runs the tunnel with no keepalive pings and no auto-restart.
 

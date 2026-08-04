@@ -42,6 +42,14 @@ type Bastion struct {
 	Port      int    `json:"port,omitempty"`
 	LocalPort int    `json:"localPort,omitempty"`
 	Filter    string `json:"filter,omitempty"`
+
+	// KeepAliveSeconds is the interval between keepalive pings through the
+	// tunnel. Absent (0) means defaultKeepAliveSeconds; keepAliveOff disables it.
+	KeepAliveSeconds int `json:"keepAliveSeconds,omitempty"`
+
+	// NoReconnect is stored inverted so that existing configurations, which
+	// have no such field, reconnect by default.
+	NoReconnect bool `json:"noReconnect,omitempty"`
 }
 
 type RDSDatabase struct {

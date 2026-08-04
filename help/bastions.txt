@@ -6,7 +6,7 @@ USAGE:
     awsdo bastions add [--profile <aws cli profile>] [--filter <filter text>]
     awsdo bastions update [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
     awsdo bastions up [--profile <aws cli profile>] [--filter <filter text>] [<bastion name>]
-    awsdo bastions set [--profile <aws cli profile>] <bastion name> [--host <host>] [--port <port>] [--local-port <port>] [--filter <filter>]
+    awsdo bastions set [--profile <aws cli profile>] <bastion name> [--host <host>] [--port <port>] [--local-port <port>] [--filter <filter>] [--keepalive <seconds|off>] [--reconnect <on|off>]
     awsdo bastions rename [--profile <aws cli profile>] <old name> <new name>
     awsdo bastions mv [--profile <aws cli profile>] <old name> <new name>
     awsdo bastions remove [--profile <aws cli profile>] [--name <bastion name>]
@@ -62,6 +62,10 @@ OPTIONS:
     --host           Remote host to set (for set command)
     --port           Remote port to set (for set command)
     --local-port     Local tunnel port to set (for set command)
+    --keepalive      Tunnel keepalive interval in seconds, or 'off'
+                     (for set command; default 60 — see 'awsdo help bastion')
+    --reconnect      Restart the tunnel when it drops, 'on' or 'off'
+                     (for set command; default on)
 
 LIST COMMAND:
     Lists all configured bastions for the specified profile in a vertical

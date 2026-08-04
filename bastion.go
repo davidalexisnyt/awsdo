@@ -2,10 +2,8 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -675,11 +673,13 @@ func updateBastion(args []string, config *Configuration) error {
 
 	// Update bastion configuration
 	updatedBastion := Bastion{
-		ID:       existingBastionID,
-		Name:     targetBastionName,
-		Profile:  currentProfile,
-		Instance: selectedBastionInstance.Instance,
-		Filter:   filter,
+		ID:               existingBastionID,
+		Name:             targetBastionName,
+		Profile:          currentProfile,
+		Instance:         selectedBastionInstance.Instance,
+		Filter:           filter,
+		KeepAliveSeconds: existingBastion.KeepAliveSeconds,
+		NoReconnect:      existingBastion.NoReconnect,
 	}
 
 	if selectedDB != nil {
@@ -716,7 +716,10 @@ func updateBastion(args []string, config *Configuration) error {
 // partitionSetBastionArgs splits args into flag tokens (consumed as flag+value pairs) and bare
 // positional arguments. This allows mixing a positional bastion name with flags in any order,
 // e.g. "my-bastion --port 5433" or "--port 5433 my-bastion".
-func partitionSetBastionArgs(args []string) (forFlagSet []string, positionals []string) {
+// partitionBastionArgs splits arguments into flag tokens and positionals so that
+// flags may appear after the bastion name, which Go's flag package rejects.
+// Every bastion flag takes a value, so consuming the token after a flag is safe.
+func partitionBastionArgs(args []string) (forFlagSet []string, positionals []string) {
 	i := 0
 
 	for i < len(args) {
@@ -747,7 +750,7 @@ func partitionSetBastionArgs(args []string) (forFlagSet []string, positionals []
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func setBastion(args []string, config *Configuration) error {
-	flagTokens, positionals := partitionSetBastionArgs(args)
+	flagTokens, positionals := partitionBastionArgs(args)
 
 	flagSet := flag.NewFlagSet("bastions set", flag.ContinueOnError)
 	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
@@ -757,21 +760,24 @@ func setBastion(args []string, config *Configuration) error {
 	localPortFlag := flagSet.Int("local-port", 0, "--local-port <local port>")
 	filterFlag := flagSet.String("filter", "", "--filter <filter text>")
 	filterShort := flagSet.String("f", "", "--filter <filter text>")
+	keepAliveFlag := flagSet.String("keepalive", "", "--keepalive <seconds|off>")
+	reconnectFlag := flagSet.String("reconnect", "", "--reconnect <on|off>")
 
 	flagSet.Usage = func() {
 		fmt.Println("USAGE:")
 		fmt.Println("    awsdo bastions set [--profile <aws cli profile>] <bastion name>")
 		fmt.Println("                      [--host <remote host>] [--port <remote port>]")
 		fmt.Println("                      [--local-port <local port>] [--filter <filter text>]")
+		fmt.Println("                      [--keepalive <seconds|off>] [--reconnect <on|off>]")
 	}
 
 	if err := flagSet.Parse(flagTokens); err != nil {
 		return nil
 	}
 
-	if *hostFlag == "" && *portFlag == 0 && *localPortFlag == 0 && *filterFlag == "" && *filterShort == "" {
+	if *hostFlag == "" && *portFlag == 0 && *localPortFlag == 0 && *filterFlag == "" && *filterShort == "" && *keepAliveFlag == "" && *reconnectFlag == "" {
 		flagSet.Usage()
-		return fmt.Errorf("at least one field must be specified: --host, --port, --local-port, or --filter")
+		return fmt.Errorf("at least one field must be specified: --host, --port, --local-port, --filter, --keepalive, or --reconnect")
 	}
 
 	var targetBastionName string
@@ -834,6 +840,20 @@ func setBastion(args []string, config *Configuration) error {
 	if filter != "" {
 		existingBastion.Filter = filter
 	}
+	if *keepAliveFlag != "" {
+		keepAliveSeconds, err := parseKeepAliveSetting(*keepAliveFlag)
+		if err != nil {
+			return err
+		}
+		existingBastion.KeepAliveSeconds = keepAliveSeconds
+	}
+	if *reconnectFlag != "" {
+		noReconnect, err := parseReconnectSetting(*reconnectFlag)
+		if err != nil {
+			return err
+		}
+		existingBastion.NoReconnect = noReconnect
+	}
 
 	profileInfo.Bastions[targetBastionName] = existingBastion
 	profileInfo.Name = currentProfile
@@ -845,21 +865,52 @@ func setBastion(args []string, config *Configuration) error {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func startBastionTunnel(args []string, config *Configuration) error {
+	flagTokens, positionals := partitionBastionArgs(args)
+
 	flagSet := flag.NewFlagSet("bastion", flag.ContinueOnError)
 	profile := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
 	bastionNameFull := flagSet.String("name", "", "--name <bastion name>")
 	bastionNameShort := flagSet.String("n", "", "-n <bastion name>")
+	keepAliveFlag := flagSet.String("keepalive", "", "--keepalive <seconds|off>")
+	reconnectFlag := flagSet.String("reconnect", "", "--reconnect <on|off>")
 
 	flagSet.Usage = func() {
 		fmt.Println("USAGE:")
 		fmt.Println("    awsdo bastion [--profile <aws cli profile>] [--name <bastion name>]")
 		fmt.Println("                    [--instance <instance id>] [--host <remote host>]")
 		fmt.Println("                    [--port <remote port>] [--local <local port>]")
+		fmt.Println("                    [--keepalive <seconds|off>] [--reconnect <on|off>]")
 	}
 
-	if err := flagSet.Parse(args); err != nil {
+	if err := flagSet.Parse(flagTokens); err != nil {
 		return nil
+	}
+
+	// Validate the session settings before doing any AWS work, so a typo does
+	// not cost a login round trip.
+	keepAliveOverride := 0
+	if *keepAliveFlag != "" {
+		parsedKeepAlive, err := parseKeepAliveSetting(*keepAliveFlag)
+
+		if err != nil {
+			return err
+		}
+
+		keepAliveOverride = parsedKeepAlive
+	}
+
+	reconnectOverridden := *reconnectFlag != ""
+	noReconnectOverride := false
+
+	if reconnectOverridden {
+		parsedReconnect, err := parseReconnectSetting(*reconnectFlag)
+
+		if err != nil {
+			return err
+		}
+
+		noReconnectOverride = parsedReconnect
 	}
 
 	// Handle bastion name lookup logic
@@ -869,8 +920,8 @@ func startBastionTunnel(args []string, config *Configuration) error {
 	var bastionName string
 
 	switch {
-	case flagSet.NArg() > 0:
-		bastionName = flagSet.Arg(0)
+	case len(positionals) > 0:
+		bastionName = positionals[0]
 	case *bastionNameFull != "":
 		bastionName = *bastionNameFull
 	case *bastionNameShort != "":
@@ -1013,6 +1064,23 @@ func startBastionTunnel(args []string, config *Configuration) error {
 		login(args, config)
 	}
 
+	keepAliveSeconds := bastion.KeepAliveSeconds
+	if *keepAliveFlag != "" {
+		keepAliveSeconds = keepAliveOverride
+	}
+
+	reconnect := !bastion.NoReconnect
+	if reconnectOverridden {
+		reconnect = !noReconnectOverride
+	}
+
+	keepAlive := keepAliveInterval(keepAliveSeconds)
+
+	reconnectLabel := "on"
+	if !reconnect {
+		reconnectLabel = "off"
+	}
+
 	msg := fmt.Sprintf("Starting bastion tunnel to %s%s%s \non port %d using profile %s%s%s", greenColor, bastion.Host, resetColor, bastion.Port, greenColor, bastion.Profile, resetColor)
 
 	fmt.Println("\n-----------------------------------------------------------------------------------------------")
@@ -1020,71 +1088,89 @@ func startBastionTunnel(args []string, config *Configuration) error {
 	fmt.Println("-----------------------------------------------------------------------------------------------")
 
 	fmt.Printf("\nStarting port forwarding session to %s:%d via bastion %s...\n", bastion.Host, bastion.LocalPort, bastion.Instance)
+	fmt.Printf("Keepalive: %s    Auto-reconnect: %s\n", describeKeepAlive(keepAlive), reconnectLabel)
 	fmt.Println("Press Ctrl-C to stop the tunnel and return to the REPL.")
-
-	var stderrBuf bytes.Buffer
-
-	command := exec.Command("aws", commandArgs...)
-	command.Stdout = os.Stdout
-	command.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-	command.Stdin = os.Stdin
-
-	if err := command.Start(); err != nil {
-		return fmt.Errorf("failed to start session: %v", err)
-	}
 
 	// Set up signal handling to catch Ctrl-C
 	signalChan := make(chan os.Signal, 1)
 	setupSignalHandler(signalChan)
 	defer signal.Stop(signalChan)
 
-	// Wait for command completion or interrupt in a goroutine
-	done := make(chan error, 1)
-	go func() {
-		done <- command.Wait()
-	}()
+	consecutiveFailures := 0
 
-	select {
-	case <-signalChan:
-		// Signal received (Ctrl-C) - kill the command process
-		fmt.Println("\nStopping bastion tunnel...")
-		if err := command.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process: %v", err)
-		}
+	for {
+		outcome, duration, err := runTunnelSession(commandArgs, bastion.LocalPort, keepAlive, signalChan)
 
-		// Wait for the process to actually terminate
-		<-done
+		switch outcome {
+		case tunnelStoppedByUser:
+			return err
 
-		// Don't return an error - just return to REPL
-		return nil
-	case err := <-done:
-		// Command completed normally
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				// If the process was terminated by a signal, don't treat it as an error
-				if exitErr.ExitCode() == -1 {
-					return nil
-				}
-			}
-
-			if strings.Contains(stderrBuf.String(), "TargetNotConnected") {
-				if confirmPrompt(fmt.Sprintf("\nBastion '%s' is no longer connected. Refresh its configuration?", bastion.Name)) {
-					updateArgs := []string{bastion.Name}
-					if bastionProfile != "" {
-						updateArgs = append([]string{"--profile", bastionProfile}, updateArgs...)
-					}
-					if updateErr := updateBastion(updateArgs, config); updateErr != nil {
-						return updateErr
-					}
-					return startBastionTunnel(args, config)
-				}
+		case tunnelTargetNotConnected:
+			if !confirmPrompt(fmt.Sprintf("\nBastion '%s' is no longer connected. Refresh its configuration?", bastion.Name)) {
 				return nil
 			}
 
-			return fmt.Errorf("session ended with error: %v", err)
+			updateArgs := []string{bastion.Name}
+
+			if bastionProfile != "" {
+				updateArgs = append([]string{"--profile", bastionProfile}, updateArgs...)
+			}
+
+			if updateErr := updateBastion(updateArgs, config); updateErr != nil {
+				return updateErr
+			}
+
+			return startBastionTunnel(args, config)
 		}
 
-		return nil
+		if !reconnect {
+			return err
+		}
+
+		if duration >= stableSessionDuration {
+			consecutiveFailures = 0
+		} else {
+			consecutiveFailures++
+		}
+
+		// Repeated instant failures mean something the tunnel cannot recover
+		// from on its own, so stop instead of spinning.
+		if consecutiveFailures > maxRapidFailures {
+			if err != nil {
+				return err
+			}
+
+			return fmt.Errorf("bastion tunnel ended %d times without staying up; giving up", consecutiveFailures)
+		}
+
+		if err != nil {
+			fmt.Printf("\nTunnel dropped: %v\n", err)
+		} else {
+			fmt.Println("\nTunnel closed by AWS.")
+		}
+
+		delay := reconnectDelay(consecutiveFailures)
+		fmt.Printf("Reconnecting in %s... (Ctrl-C to stop)\n", delay)
+
+		if interrupted := waitBeforeReconnect(delay, signalChan); interrupted {
+			fmt.Println("\nStopping bastion tunnel...")
+			return nil
+		}
+
+		// Sessions also end when SSO credentials expire.
+		if !isLoggedIn(bastionProfile) {
+			loginArgs := []string{}
+
+			if bastionProfile != "" {
+				loginArgs = append(loginArgs, "--profile", bastionProfile)
+			}
+
+			if loginErr := login(loginArgs, config); loginErr != nil {
+				return loginErr
+			}
+		}
+
+		waitForLocalPortRelease(bastion.LocalPort, portReleaseTimeout)
 	}
 }
 

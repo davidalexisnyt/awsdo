@@ -333,6 +333,36 @@ awsdo bastion -p dev --name my-db
 
 These options give us the flexibility to use `awsdo` in a way that matches our personal approach.
 
+#### Keeping a Tunnel Alive
+
+AWS ends a Session Manager session after an account-wide idle timeout — 20 minutes by default, and 60 minutes at most. Corporate VPNs and NAT gateways often drop the underlying idle WebSocket connection much sooner than that. Neither limit can be changed from the command line, so `awsdo` keeps long-lived tunnels up in two ways, both enabled by default:
+
+- **Keepalive pings** — every 60 seconds, `awsdo` opens and immediately closes a connection to the local tunnel port. That traffic keeps the session from ever looking idle. The database may log an aborted connection for each ping.
+- **Auto-reconnect** — if the session ends for any other reason (network drop, laptop sleep, a maximum session duration cap), `awsdo` restarts it with a short backoff. If our SSO credentials expired in the meantime, it logs in again first. After five restarts in a row where the tunnel never stays up for a minute, it gives up rather than spinning.
+
+Both can be changed for a single session:
+
+```shell
+awsdo bastion my-prod-db --keepalive 30      # ping every 30 seconds
+awsdo bastion my-prod-db --keepalive off     # no pings
+awsdo bastion my-prod-db --reconnect off     # exit when the session ends
+```
+
+Or saved per bastion:
+
+```shell
+awsdo bastions set my-prod-db --keepalive 45
+awsdo bastions set my-prod-db --reconnect off
+```
+
+Press Ctrl-C to stop the tunnel at any point, including while it is waiting to reconnect.
+
+If tunnels still die faster than the keepalive interval, check the account's Session Manager preferences — the idle timeout may be set very low:
+
+```shell
+aws ssm get-document --name SSM-SessionManagerRunShell --profile <profile> --query Content --output text
+```
+
 ### What if our authentication session has expired?
 
 If we try to issue an AWS CLI command without first logging in, or after our session has expired, we would get a rude response. We would then need to log in and re-attempt our previous command. This is simplified with `awsdo`. If is detects that we don't have a valid authentication session, it will log in with our default profile before executing the command.
