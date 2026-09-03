@@ -21,3 +21,5 @@
 go.work
 awsutil_config.json
 awsutil
+awsdo
+awsdo_config.json

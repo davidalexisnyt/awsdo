@@ -97,6 +97,10 @@ func queryBastionInstances(profile string, filter string) ([]EC2Instance, error)
 		filter = "bastion"
 	}
 
+	if err := validateFilter(filter); err != nil {
+		return nil, err
+	}
+
 	commandArgs := []string{
 		"ec2",
 		"describe-instances",
@@ -178,6 +182,10 @@ func queryBastionInstances(profile string, filter string) ([]EC2Instance, error)
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func queryEC2Instances(profile string, filter string) ([]EC2Instance, error) {
+	if err := validateFilter(filter); err != nil {
+		return nil, err
+	}
+
 	commandArgs := []string{
 		"ec2",
 		"describe-instances",

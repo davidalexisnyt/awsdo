@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
@@ -15,14 +14,11 @@ func getCredentials(args []string, config *Configuration) error {
 	flagSet := flag.NewFlagSet("get-credentials", flag.ContinueOnError)
 	profileFlag := flagSet.String("profile", "", "--profile <aws cli profile>")
 	profileShort := flagSet.String("p", "", "--profile <aws cli profile>")
-	setEnvFlag := flagSet.Bool("set-env", false, "--set-env <set environment variables>")
-	setEnvShort := flagSet.Bool("e", false, "--set-env <set environment variables>")
 
 	flagSet.Usage = func() {
 		fmt.Println("USAGE:")
 		fmt.Println("    awsdo get-credentials [--profile <aws cli profile>]")
 		fmt.Println("    awsdo get-credentials [-p <aws cli profile>]")
-		fmt.Println("    awsdo get-credentials [--set-env]")
 		fmt.Println("    awsdo get-credentials [-e]")
 	}
 
@@ -82,35 +78,10 @@ func getCredentials(args []string, config *Configuration) error {
 	fmt.Println("--------------------------------")
 	fmt.Println()
 
-	if *setEnvFlag || *setEnvShort {
-		fmt.Println("Setting environment variables...")
-
-		accessKeyID, err := stringFromCredentialsMap(credentials, "AccessKeyId")
-		if err != nil {
-			return err
-		}
-
-		secretAccessKey, err := stringFromCredentialsMap(credentials, "SecretAccessKey")
-		if err != nil {
-			return err
-		}
-
-		sessionToken, err := stringFromCredentialsMap(credentials, "SessionToken")
-		if err != nil {
-			return err
-		}
-
-		setEnvironmentVar("AWS_ACCESS_KEY_ID", accessKeyID)
-		setEnvironmentVar("AWS_SECRET_ACCESS_KEY", secretAccessKey)
-		setEnvironmentVar("AWS_SESSION_TOKEN", sessionToken)
-
-		fmt.Println("Environment variables set successfully!")
-		fmt.Println()
-	}
-
 	return nil
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func stringFromCredentialsMap(m map[string]any, key string) (string, error) {
 	v, ok := m[key]
 	if !ok || v == nil {
@@ -121,24 +92,4 @@ func stringFromCredentialsMap(m map[string]any, key string) (string, error) {
 		return "", fmt.Errorf("credentials JSON field %q must be a string", key)
 	}
 	return s, nil
-}
-
-func setEnvironmentVar(nane, value string) {
-	// Set the environment variable so that it is available outside of this process by
-	// - using the "export" command on Unix-like systems
-	// - using the "setx" command on Windows
-	switch runtime.GOOS {
-	case "windows":
-		cmd := exec.Command("setx", nane, value)
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Failed to set environment variable %s: %v\n", nane, err)
-		}
-	default: // linux and others
-		cmd := exec.Command("bash", "-c", fmt.Sprintf("export %s=%s", nane, value))
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Failed to set environment variable %s: %v\n", nane, err)
-		}
-	}
 }

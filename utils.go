@@ -17,11 +17,29 @@ import (
 )
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+func validateFilter(f string) error {
+	if len(f) > 128 {
+		return fmt.Errorf("filter too long")
+	}
+
+	if f == "" {
+		return nil
+	}
+
+	for _, r := range f {
+		if !(r == '*' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
+			return fmt.Errorf("filter contains invalid character")
+		}
+	}
+
+	return nil
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func findAvailableLocalPort(startPort int) (int, error) {
 	for port := startPort; port < startPort+1000; port++ {
-		// Try to listen on all interfaces (same as HTTP server will use)
-		// This checks if the port is truly available for binding
-		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		// Bind only to loopback to avoid exposing the port network-wide
+		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if err == nil {
 			// Port is available - close the listener immediately
 			listener.Close()
@@ -55,6 +73,7 @@ func confirmPrompt(question string) bool {
 	fmt.Printf("%s [y/n]: ", question)
 
 	fd := int(os.Stdin.Fd())
+
 	if term.IsTerminal(fd) {
 		oldState, err := term.MakeRaw(fd)
 		if err == nil {
@@ -68,7 +87,9 @@ func confirmPrompt(question string) bool {
 				fmt.Println()
 				return false
 			}
+
 			key := buf[0]
+
 			switch {
 			case key == 'y' || key == 'Y':
 				fmt.Println("y")
@@ -80,6 +101,7 @@ func confirmPrompt(question string) bool {
 				fmt.Println("n")
 				return false
 			}
+
 			// Ignore any other key and wait for a valid response
 		}
 	}
@@ -88,6 +110,7 @@ func confirmPrompt(question string) bool {
 	reader := bufio.NewReader(os.Stdin)
 	line, _ := reader.ReadString('\n')
 	line = strings.TrimSpace(strings.ToLower(line))
+
 	return line == "y" || line == "yes"
 }
 

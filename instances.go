@@ -72,6 +72,10 @@ func findInstances(args []string, config *Configuration) error {
 		return err
 	}
 
+	if err := validateFilter(filter); err != nil {
+		return err
+	}
+
 	commandArgs := []string{
 		"ec2",
 		"describe-instances",

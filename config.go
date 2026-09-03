@@ -72,10 +72,21 @@ type EC2Instance struct {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func loadConfiguration(fileName string) (Configuration, error) {
-	if _, err := os.Stat(fileName); err != nil {
+	fileInfo, err := os.Stat(fileName)
+	if err != nil {
 		return Configuration{}, nil
 	}
 
+	// Ensure that the configuration file is accessible only to the current user
+	// First, check the current permissions of the file
+	// and then set it to be accessible only to the current user
+	if fileInfo.Mode().Perm() != 0600 {
+		if err := os.Chmod(fileName, 0600); err != nil {
+			return Configuration{}, fmt.Errorf("could not set config file permissions: %v", err)
+		}
+	}
+
+	// Read the configuration file
 	var config Configuration
 	configBytes, err := os.ReadFile(fileName)
 
@@ -152,9 +163,9 @@ func saveConfiguration(fileName string, config *Configuration) {
 	// Rebuild BastionLookup map before saving
 	rebuildBastionLookup(config)
 
-	// Save the configuration file
+	// Save the configuration file with permissions to only the current user
 	configBytes, _ := json.MarshalIndent(config, "", "    ")
-	os.WriteFile(fileName, configBytes, 0644)
+	os.WriteFile(fileName, configBytes, 0600)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

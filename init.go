@@ -765,7 +765,7 @@ func addProfileWithSSOSetup(config *Configuration, profileName string) error {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // appendProfileToConfig appends a profile section to the AWS config file
 func appendProfileToConfig(configPath, profileName, ssoStartURL, ssoRegion, accountID, roleName, defaultRegion string) error {
-	file, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -857,5 +857,5 @@ func removeProfileFromAWSConfig(configPath, profileName string) error {
 		newContent += "\n"
 	}
 
-	return os.WriteFile(configPath, []byte(newContent), 0644)
+	return os.WriteFile(configPath, []byte(newContent), 0600)
 }
