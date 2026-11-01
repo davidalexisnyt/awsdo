@@ -605,8 +605,8 @@ awsdo mv instance myapp myapp-prod</code></pre>
         <blockquote>
           <p>
             <strong>NOTE:</strong> You should notice a new file called
-            <code>awsdo_config.json</code> in the same location as the
-            <code>awsdo</code> executable after running the commands we've gone
+            <code>config.json</code> in the <code>~/.awsdo</code> folder
+            after running the commands we've gone
             over so far. Take a look at the file if you're curious to see how
             <code>awsdo</code> keeps track of things.
           </p>
@@ -869,7 +869,7 @@ awsdo profiles rm &lt;profile name&gt;</code></pre>
         <p>
           You will be prompted to confirm before the profile is removed. The
           profile is deleted from both <code>~/.aws/config</code> and
-          awsdo_config.json. If the removed profile was the awsdo default,
+          ~/.awsdo/config.json. If the removed profile was the awsdo default,
           the default will be cleared.
         </p>
 
@@ -1415,7 +1415,7 @@ awsdo terminal myinstance</code></pre>
           <code>awsdo instances find</code> command results in just one instance
           being returned, <code>awsdo</code> will save that instance as your
           default. Let's try it. First, delete the
-          <code>awsdo_config.json</code> file so we're sure we have no defaults
+          <code>~/.awsdo/config.json</code> file so we're sure we have no defaults
           saved. Then do something like this, where the
           <em>filter</em> parameter ensures that we get just one instance back:
         </p>
@@ -1530,15 +1530,17 @@ awsdo shell-init powershell | Out-String | Invoke-Expression</code></pre>
 
         <p>
           Set <code>commandHistoryLength</code> in
-          <code>awsdo_config.json</code> to change how many commands are kept.
-          The default is 1000; a negative value turns saving off.
+          <code>config.json</code> to change how many commands are kept.
+          The default is 100; a negative value turns saving off.
         </p>
 
         <h2>Configuration File Format</h2>
 
         <p>
-          The configuration file (<code>awsdo_config.json</code>) is stored in
-          the same directory as the executable. It supports:
+          The configuration file (<code>~/.awsdo/config.json</code>) is created
+          on first use. A legacy <code>awsdo_config.json</code> next to the
+          executable is moved there automatically the first time a new version
+          starts. It supports:
         </p>
 
         <ul>
@@ -1549,7 +1551,7 @@ awsdo shell-init powershell | Out-String | Invoke-Expression</code></pre>
           <li>
             <strong>Command History Length</strong>
             (<code>commandHistoryLength</code>): How many commands to keep in
-            <code>~/.awsdo/history</code> (default 1000, negative to disable)
+            <code>~/.awsdo/history</code> (default 100, negative to disable)
           </li>
           <li>
             <strong>Per-Profile Settings</strong>:

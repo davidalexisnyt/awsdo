@@ -58,7 +58,7 @@ REMOVING PROFILES:
     Removes an AWS CLI profile from ~/.aws/config and awsdo config:
     1. Displays the profile name (and notes if it is the awsdo default)
     2. Asks for confirmation before removal
-    3. Removes from ~/.aws/config and awsdo_config.json
+    3. Removes from ~/.aws/config and ~/.awsdo/config.json
     4. Clears the awsdo default if the removed profile was the default
 
     Examples:

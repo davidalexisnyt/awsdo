@@ -14,16 +14,18 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
-var Version = "1.0.21"
+var Version = "1.1"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 func main() {
-	exePath, _ := os.Executable()
-	configFile := filepath.Join(filepath.Dir(exePath), "awsdo_config.json")
+	configFile, err := configFilePath()
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
 	config, err := loadConfiguration(configFile)
 	if err != nil {

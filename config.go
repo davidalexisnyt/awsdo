@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Configuration struct {
@@ -72,6 +74,66 @@ type EC2Instance struct {
 	InstanceType string `json:"Type"`
 	PublicIP     string `json:"PublicIP"`
 	LaunchTime   string `json:"LaunchTime"`
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// configFilePath returns ~/.awsdo/config.json, first moving over a legacy
+// awsdo_config.json found next to the executable.
+func configFilePath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not determine the home directory for the config file: %v", err)
+	}
+
+	configFile := filepath.Join(home, ".awsdo", "config.json")
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return configFile, nil
+	}
+
+	legacyFile := filepath.Join(filepath.Dir(exePath), "awsdo_config.json")
+
+	return configFile, migrateConfigFile(legacyFile, configFile)
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// migrateConfigFile moves legacyFile to configFile, unless configFile already
+// exists or there is nothing to migrate.
+func migrateConfigFile(legacyFile, configFile string) error {
+	_, err := os.Stat(configFile)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("could not check %s: %v", configFile, err)
+	}
+
+	content, err := os.ReadFile(legacyFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("could not read %s for migration: %v", legacyFile, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(configFile), 0700); err != nil {
+		return fmt.Errorf("could not create %s: %v", filepath.Dir(configFile), err)
+	}
+
+	if err := os.WriteFile(configFile, content, 0600); err != nil {
+		return fmt.Errorf("could not migrate %s to %s: %v", legacyFile, configFile, err)
+	}
+
+	// The copy is already in place, so a leftover legacy file only means the
+	// old location is ignored from now on.
+	if err := os.Remove(legacyFile); err != nil {
+		fmt.Printf("Migrated the config file to %s, but could not remove %s: %v\n", configFile, legacyFile, err)
+		return nil
+	}
+
+	fmt.Printf("Migrated the config file from %s to %s\n", legacyFile, configFile)
+	return nil
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -169,7 +231,14 @@ func saveConfiguration(fileName string, config *Configuration) {
 
 	// Save the configuration file with permissions to only the current user
 	configBytes, _ := json.MarshalIndent(config, "", "    ")
-	os.WriteFile(fileName, configBytes, 0600)
+	if err := os.MkdirAll(filepath.Dir(fileName), 0700); err != nil {
+		fmt.Printf("Could not create %s: %v\n", filepath.Dir(fileName), err)
+		return
+	}
+
+	if err := os.WriteFile(fileName, configBytes, 0600); err != nil {
+		fmt.Printf("Could not save %s: %v\n", fileName, err)
+	}
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

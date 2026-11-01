@@ -19,8 +19,8 @@ SUBCOMMANDS:
     clear           Delete all saved commands
 
 CONFIGURATION:
-    Set "commandHistoryLength" in awsdo_config.json to change how many
-    commands are kept. The default is 1000. A negative value turns saving off.
+    Set "commandHistoryLength" in ~/.awsdo/config.json to change how many
+    commands are kept. The default is 100. A negative value turns saving off.
 
 SCROLLING HISTORY IN YOUR SHELL:
     Run 'awsdo help shell-init' to set up Up/Down history after typing

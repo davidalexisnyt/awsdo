@@ -155,7 +155,7 @@ We're going to work quite a bit with the `i-0c15ff251abee847f` instance, so let'
 
 However, if our `instances` query returns more than one EC2 instance, we'll need to specify the instance ID (just once) when we want to connect to it.
 
-> NOTE: You should notice a new file called `awsdo_config.json` in the same location as the `awsdo` executable after running the commands we've gone over so far. Take a look at the file if you're curious to see how `awsdo` keeps track of things.
+> NOTE: You should notice a new file called `config.json` in the `~/.awsdo` folder after running the commands we've gone over so far. Take a look at the file if you're curious to see how `awsdo` keeps track of things.
 
 ### Launching an SSM terminal session
 
@@ -397,7 +397,7 @@ awsdo terminal --profile dev i-0c15ff251abee847f
 
 The profile and instance ID will automatically get saved, an SSO authentication session will be created, and you will be connected to the instance via an SSM terminal session. Then you'd simply use `awsdo terminal` to log in to the instance again later.
 
-Let's simplify even further. If the filter we supply for the `awsdo instances` command results in just one instance being returned, `awsdo` will save that instance ID as your default. Let's try it. First, delete the `awsdo_config.json` file so we're sure we have no defaults saved. Then issue do something like this, where the _filter_ parameter ensures that we get just one instance back:
+Let's simplify even further. If the filter we supply for the `awsdo instances` command results in just one instance being returned, `awsdo` will save that instance ID as your default. Let's try it. First, delete the `~/.awsdo/config.json` file so we're sure we have no defaults saved. Then issue do something like this, where the _filter_ parameter ensures that we get just one instance back:
 
 ```shell
 awsdo instances --profile spg very-specific-prefix
@@ -458,14 +458,14 @@ eval "$(awsdo shell-init zsh)"
 
 In zsh, fish, and PowerShell the Up and Down arrows step through awsdo history only while the line starts with `awsdo `; elsewhere they behave as usual. `Ctrl-X h` does the same as Up. Bash uses `Ctrl-X h` and `Ctrl-X H` only. See `awsdo help shell-init`.
 
-Set `commandHistoryLength` in `awsdo_config.json` to change the number of saved commands (default 1000; a negative value turns saving off).
+Set `commandHistoryLength` in `config.json` to change the number of saved commands (default 100; a negative value turns saving off).
 
 ## Configuration File Format
 
-The configuration file (`awsdo_config.json`) is stored in the same directory as the executable. It supports:
+The configuration file (`~/.awsdo/config.json`) is created on first use. A legacy `awsdo_config.json` next to the executable is moved there automatically the first time a new version starts. It supports:
 
 - **Default Profile**: The AWS CLI profile to use by default
-- **Command History Length** (`commandHistoryLength`): How many commands to keep in `~/.awsdo/history` (default 1000, negative to disable)
+- **Command History Length** (`commandHistoryLength`): How many commands to keep in `~/.awsdo/history` (default 100, negative to disable)
 - **Per-Profile Settings**:
   - Default EC2 instance ID
   - Multiple named bastions
