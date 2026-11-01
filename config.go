@@ -10,6 +10,10 @@ type Configuration struct {
 	DefaultProfile string                   `json:"defaultProfile,omitempty"`
 	Profiles       map[string]Profile       `json:"profiles,omitempty"`
 	BastionLookup  map[string]BastionLookup `json:"-"` // Map of bastion ID to profile and name
+
+	// CommandHistoryLength caps the persisted command history. Absent (0) means
+	// defaultHistoryLength; a negative value disables persistence.
+	CommandHistoryLength int `json:"commandHistoryLength,omitempty"`
 }
 
 type BastionLookup struct {

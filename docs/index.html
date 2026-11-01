@@ -68,6 +68,11 @@
             <strong>Credential Export</strong>: Export AWS credentials (access key,
             secret key, and session token) for use in other applications
           </li>
+          <li>
+            <strong>Command History</strong>: Commands are saved across
+            sessions; scroll through them in the REPL or after typing
+            <code>awsdo </code> at your shell prompt
+          </li>
           <li><strong>Help System</strong>: Built-in help for all commands</li>
           <li>
             <strong>Auto-Configuration</strong>: Automatically saves your
@@ -174,12 +179,20 @@
             <code>mv bastion</code>, <code>rm bastion</code>
           </li>
           <li>
-            <code>profiles</code> - Add or list AWS CLI profiles
-            (<code>profiles add</code>, <code>profiles list</code>)
+            <code>profiles</code> - Add, list, or remove AWS CLI profiles
+            (<code>profiles add</code>, <code>profiles list</code>,
+            <code>profiles remove</code>)
           </li>
           <li>
             <code>repl</code> - Start interactive REPL mode for convenient
             command execution
+          </li>
+          <li>
+            <code>history</code> - List, re-run, or clear saved commands
+          </li>
+          <li>
+            <code>shell-init</code> - Print shell key bindings for scrolling
+            awsdo history at your shell prompt
           </li>
           <li>
             <code>help</code> - Show help information (use
@@ -187,8 +200,7 @@
           </li>
           <li>
             <code>docs</code> - Displays the application documentation
-            (contained in README.md) to the terminal. The markdown is converted
-            and rendered to look beautiful in the terminal.
+            (this page) in your default browser.
           </li>
         </ul>
 
@@ -1212,7 +1224,7 @@ awsdo bastions set my-prod-db --reconnect off</code></pre>
         <pre><code class="language-shell">awsdo repl</code></pre>
 
         <p>
-          You'll see a green prompt (<code>&gt;&gt;&gt;</code>) indicating that
+          You'll see a green prompt (<code>awsdo&gt;&gt;</code>) indicating that
           you're in REPL mode. You can now type commands directly without the
           <code>awsdo</code> prefix.
         </p>
@@ -1298,6 +1310,14 @@ awsdo bastions set my-prod-db --reconnect off</code></pre>
             </ul>
           </li>
           <li>
+            <strong>Command History</strong>: Press <code>Up</code> and
+            <code>Down</code> to scroll through earlier commands, including
+            those from previous sessions. Use <code>history</code> to list them,
+            <code>history run &lt;number&gt;</code> to run one again, and
+            <code>history clear</code> to delete them. See
+            <a href="#command-history">Command History</a>.
+          </li>
+          <li>
             <strong>Exit Commands</strong>: Exit the REPL using any of:
             <code>quit</code>, <code>q</code>, <code>:q</code>, <code>.q</code>,
             <code>exit</code>, <code>:exit</code>, <code>.exit</code>, or
@@ -1325,22 +1345,22 @@ awsdo bastions set my-prod-db --reconnect off</code></pre>
 
         <p>In REPL mode, you can run commands like:</p>
 
-        <pre><code>&gt;&gt;&gt; login -p dev
-&gt;&gt;&gt; credentials -p dev
-&gt;&gt;&gt; instances find -f myapp
-&gt;&gt;&gt; instances ls
-&gt;&gt;&gt; ls instances
-&gt;&gt;&gt; ls profiles
-&gt;&gt;&gt; profiles add dev
-&gt;&gt;&gt; profiles remove dev
-&gt;&gt;&gt; find instance -f myapp
-&gt;&gt;&gt; add instance -f example
-&gt;&gt;&gt; terminal myinstance
-&gt;&gt;&gt; bastions ls
-&gt;&gt;&gt; ls bastions
-&gt;&gt;&gt; bastion
-&gt;&gt;&gt; help instances
-&gt;&gt;&gt; quit</code></pre>
+        <pre><code>awsdo&gt;&gt; login -p dev
+awsdo&gt;&gt; credentials -p dev
+awsdo&gt;&gt; instances find -f myapp
+awsdo&gt;&gt; instances ls
+awsdo&gt;&gt; ls instances
+awsdo&gt;&gt; ls profiles
+awsdo&gt;&gt; profiles add dev
+awsdo&gt;&gt; profiles remove dev
+awsdo&gt;&gt; find instance -f myapp
+awsdo&gt;&gt; add instance -f example
+awsdo&gt;&gt; terminal myinstance
+awsdo&gt;&gt; bastions ls
+awsdo&gt;&gt; ls bastions
+awsdo&gt;&gt; bastion
+awsdo&gt;&gt; help instances
+awsdo&gt;&gt; quit</code></pre>
 
         <p>
           All commands work the same as in normal mode, but without needing to
@@ -1440,6 +1460,8 @@ awsdo help instances rename
 awsdo help instances remove
 awsdo help rename
 awsdo help terminal
+awsdo help history
+awsdo help shell-init
 # etc.</code></pre>
 
         <p>
@@ -1448,6 +1470,69 @@ awsdo help terminal
         </p>
 
         <pre><code class="language-shell">awsdo docs</code></pre>
+
+        <h2 id="command-history">Command History</h2>
+
+        <p>
+          <code>awsdo</code> saves the commands you run to
+          <code>~/.awsdo/history</code>. The REPL loads them at startup, so the
+          Up and Down arrows scroll through commands from earlier sessions.
+          Command-line runs are saved only when they succeed; the REPL saves
+          every line you submit. Answers to questions a command asks are never
+          saved.
+        </p>
+
+        <pre><code class="language-shell">awsdo history              # list saved commands
+awsdo history run 12       # run entry 12 again
+awsdo history clear        # delete the history</code></pre>
+
+        <h3>Scrolling History at Your Shell Prompt</h3>
+
+        <p>
+          To scroll through history after typing <code>awsdo </code> at your
+          shell prompt, add the key bindings for your shell (zsh, bash, fish, or
+          powershell) to its startup file:
+        </p>
+
+        <pre><code class="language-shell"># zsh (~/.zshrc)
+eval "$(awsdo shell-init zsh)"
+
+# bash (~/.bashrc)
+eval "$(awsdo shell-init bash)"
+
+# fish (config.fish)
+awsdo shell-init fish | source
+
+# PowerShell ($PROFILE)
+awsdo shell-init powershell | Out-String | Invoke-Expression</code></pre>
+
+        <ul>
+          <li>
+            <strong>zsh, fish, PowerShell</strong>: <code>Up</code> and
+            <code>Down</code> step through awsdo history only while the line
+            starts with <code>awsdo </code>. Anywhere else the keys work as
+            usual. <code>Ctrl-X h</code> (PowerShell: <code>Ctrl+x, h</code>)
+            does the same as <code>Up</code>.
+          </li>
+          <li>
+            <strong>bash</strong>: <code>Ctrl-X h</code> steps to an older
+            command and <code>Ctrl-X H</code> to a newer one. Bash cannot
+            rebind <code>Up</code> for awsdo lines alone, so <code>Up</code> is
+            left untouched.
+          </li>
+        </ul>
+
+        <p>
+          <code>awsdo</code> must be on your <code>PATH</code>. Without shell
+          integration, use <code>awsdo history</code> and
+          <code>awsdo history run &lt;number&gt;</code>.
+        </p>
+
+        <p>
+          Set <code>commandHistoryLength</code> in
+          <code>awsdo_config.json</code> to change how many commands are kept.
+          The default is 1000; a negative value turns saving off.
+        </p>
 
         <h2>Configuration File Format</h2>
 
@@ -1460,6 +1545,11 @@ awsdo help terminal
           <li>
             <strong>Default Profile</strong>: The AWS CLI profile to use by
             default
+          </li>
+          <li>
+            <strong>Command History Length</strong>
+            (<code>commandHistoryLength</code>): How many commands to keep in
+            <code>~/.awsdo/history</code> (default 1000, negative to disable)
           </li>
           <li>
             <strong>Per-Profile Settings</strong>:

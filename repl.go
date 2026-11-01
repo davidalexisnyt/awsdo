@@ -33,16 +33,26 @@ type lineEditor struct {
 	history    []string // Command history
 	histIndex  int      // Current history index (-1 = not browsing history)
 	promptText string   // Text reprinted at column 1 when the line is redrawn
+
+	// historyPath is empty for editors whose history must not outlive them.
+	historyPath  string
+	historyLimit int // Maximum history entries; 0 means unlimited
 }
 
-// newLineEditor creates a new line editor for the REPL prompt
-func newLineEditor() *lineEditor {
+// newLineEditor creates a new line editor for the REPL prompt, starting with
+// the history saved by earlier sessions
+func newLineEditor(config *Configuration) *lineEditor {
+	path := historyFilePath()
+	limit := historyLimit(config)
+
 	return &lineEditor{
-		line:       make([]rune, 0),
-		cursorPos:  0,
-		history:    make([]string, 0),
-		histIndex:  -1,
-		promptText: greenColor + prompt + resetColor,
+		line:         make([]rune, 0),
+		cursorPos:    0,
+		history:      loadHistory(path, limit),
+		histIndex:    -1,
+		promptText:   greenColor + prompt + resetColor,
+		historyPath:  path,
+		historyLimit: limit,
 	}
 }
 
@@ -73,10 +83,13 @@ func (le *lineEditor) addToHistory(cmd string) {
 
 	le.history = append(le.history, cmd)
 
-	// Keep history limited to last 100 commands
-	if len(le.history) > 100 {
-		le.history = le.history[len(le.history)-100:]
+	if le.historyLimit > 0 && len(le.history) > le.historyLimit {
+		le.history = le.history[len(le.history)-le.historyLimit:]
 	}
+
+	// Persisting is best effort: a read-only home directory should not
+	// interrupt the prompt, and raw mode leaves no clean place to report it.
+	_ = appendHistory(le.historyPath, cmd, le.historyLimit)
 }
 
 // redrawLine redraws the current line with cursor at correct position
@@ -460,7 +473,7 @@ func startREPL(configFile string, config *Configuration) {
 	}()
 
 	reader := bufio.NewReader(os.Stdin)
-	editor := newLineEditor()
+	editor := newLineEditor(config)
 
 	for {
 		// Print green prompt (line editor will handle redrawing)
@@ -673,6 +686,11 @@ func executeREPLCommand(ctx context.Context, command string, args []string, conf
 			fmt.Printf("Invalid profiles subcommand: %s\n", subcommand)
 			fmt.Println("Use 'profiles add <name>', 'profiles list', or 'profiles remove <name>'")
 		}
+	case "history":
+		err := historyCommand(args, config, func(command string, args []string) {
+			executeREPLCommand(ctx, command, args, config)
+		})
+		reportCommandResult(err)
 	case "docs":
 		startDocsServerBackground(ctx)
 	case "clear", "cls", "clr", ".c":

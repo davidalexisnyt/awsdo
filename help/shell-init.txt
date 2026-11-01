@@ -1,0 +1,30 @@
+awsdo shell-init - Scroll awsdo history at your shell prompt
+
+USAGE:
+    awsdo shell-init <zsh|bash|fish|powershell>
+
+DESCRIPTION:
+    Prints key bindings that let you step through awsdo history after typing
+    'awsdo ' at your shell prompt. Add one line to your shell's startup file:
+
+        zsh         eval "$(awsdo shell-init zsh)"            (~/.zshrc)
+        bash        eval "$(awsdo shell-init bash)"           (~/.bashrc)
+        fish        awsdo shell-init fish | source            (config.fish)
+        powershell  awsdo shell-init powershell | Out-String | Invoke-Expression
+                                                              ($PROFILE)
+
+KEYS:
+    zsh, fish, powershell
+        Up / Down       Older / newer command, only while the line starts with
+                        'awsdo '. Anywhere else the keys work as usual.
+        Ctrl-X h        Same as Up (powershell: Ctrl+x, h)
+
+    bash
+        Ctrl-X h        Older command
+        Ctrl-X H        Newer command
+        Bash cannot rebind Up for awsdo lines alone, so Up is left untouched.
+
+NOTES:
+    - awsdo must be on your PATH.
+    - Without shell integration, use 'awsdo history' to list commands and
+      'awsdo history run <number>' to run one again.

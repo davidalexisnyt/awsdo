@@ -164,6 +164,18 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	case "history":
+		if err := historyCommand(os.Args[2:], &config, runHistoryEntryInCLI); err != nil {
+			reportCommandResult(err)
+			os.Exit(1)
+		}
+		return
+	case "shell-init":
+		if err := printShellInit(os.Args[2:]); err != nil {
+			reportCommandResult(err)
+			os.Exit(1)
+		}
+		return
 	case "docs":
 		showDocs()
 		return
@@ -327,6 +339,9 @@ func main() {
 		fmt.Println("Use 'awsdo help' to see available commands.")
 		os.Exit(1)
 	}
+
+	// Reaching this point means the command did not exit with an error.
+	_ = appendHistory(historyFilePath(), strings.Join(os.Args[1:], " "), historyLimit(&config))
 
 	saveConfiguration(configFile, &config)
 }

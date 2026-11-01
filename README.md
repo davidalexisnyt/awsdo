@@ -440,11 +440,32 @@ In addition to these help topics, `awsdo` also displays the full documentation (
 awsdo docs
 ```
 
+## Command History
+
+`awsdo` saves the commands you run to `~/.awsdo/history`. The REPL loads them at startup, so the Up and Down arrows scroll through commands from earlier sessions. Command-line runs are saved only when they succeed; the REPL saves every line you submit.
+
+```bash
+awsdo history              # list saved commands
+awsdo history run 12       # run entry 12 again
+awsdo history clear        # delete the history
+```
+
+To scroll through history at your shell prompt after typing `awsdo `, add the key bindings for your shell (zsh, bash, fish, or powershell):
+
+```bash
+eval "$(awsdo shell-init zsh)"
+```
+
+In zsh, fish, and PowerShell the Up and Down arrows step through awsdo history only while the line starts with `awsdo `; elsewhere they behave as usual. `Ctrl-X h` does the same as Up. Bash uses `Ctrl-X h` and `Ctrl-X H` only. See `awsdo help shell-init`.
+
+Set `commandHistoryLength` in `awsdo_config.json` to change the number of saved commands (default 1000; a negative value turns saving off).
+
 ## Configuration File Format
 
 The configuration file (`awsdo_config.json`) is stored in the same directory as the executable. It supports:
 
 - **Default Profile**: The AWS CLI profile to use by default
+- **Command History Length** (`commandHistoryLength`): How many commands to keep in `~/.awsdo/history` (default 1000, negative to disable)
 - **Per-Profile Settings**:
   - Default EC2 instance ID
   - Multiple named bastions

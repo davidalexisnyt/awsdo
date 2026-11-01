@@ -1,0 +1,27 @@
+awsdo history - Browse, re-run, or clear the command history
+
+USAGE:
+    awsdo history
+    awsdo history run <number>
+    awsdo history clear
+
+DESCRIPTION:
+    awsdo remembers the commands you run, in the REPL and from the command
+    line, in ~/.awsdo/history. The REPL loads them at startup, so Up and Down
+    scroll through commands from earlier sessions.
+
+    From the command line, a command is recorded only when it succeeds. The
+    REPL records every line you submit.
+
+SUBCOMMANDS:
+    (none)          List the saved commands, oldest first, with their numbers
+    run <number>    Run the command with that number again
+    clear           Delete all saved commands
+
+CONFIGURATION:
+    Set "commandHistoryLength" in awsdo_config.json to change how many
+    commands are kept. The default is 1000. A negative value turns saving off.
+
+SCROLLING HISTORY IN YOUR SHELL:
+    Run 'awsdo help shell-init' to set up Up/Down history after typing
+    'awsdo ' at your shell prompt.

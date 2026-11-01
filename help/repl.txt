@@ -15,6 +15,8 @@ FEATURES:
     - Screen clearing with Ctrl-L
     - Cancel with Ctrl-C: discards the line being typed, or stops a running
       command and returns to the prompt without leaving the REPL
+    - Command history saved in ~/.awsdo/history and shared across sessions
+      (Up/Down arrows; see 'help history')
     - Multiple exit options
     - Built-in help system
 
@@ -25,6 +27,7 @@ COMMANDS:
     - terminal
     - bastion
     - bastions (list/ls, add, update, remove/rm)
+    - history (run <number>, clear)
     - help, :help, .h
     - docs
     - clear/cls/clr/.c

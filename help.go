@@ -57,6 +57,12 @@ var helpLs string
 //go:embed help/profiles.txt
 var helpProfiles string
 
+//go:embed help/history.txt
+var helpHistory string
+
+//go:embed help/shell-init.txt
+var helpShellInit string
+
 //go:embed help/unknown.txt
 var helpUnknown string
 
@@ -240,6 +246,10 @@ func showHelp(command string) {
 		fmt.Print(helpLs)
 	case "profiles", "profiles add", "profiles list", "profiles remove", "profiles rm":
 		fmt.Print(helpProfiles)
+	case "history":
+		fmt.Print(helpHistory)
+	case "shell-init":
+		fmt.Print(helpShellInit)
 	default:
 		fmt.Printf(helpUnknown, command)
 	}
